@@ -5,6 +5,7 @@ import components.engine.StandardEngine;
 import dtos.ProgramDetails;
 import dtos.RunHistoryDetails;
 import fxml.debugger.DebuggerPanelController;
+import fxml.instruction_history.instruction_historyController;
 import fxml.instruction_table.instruction_tableController;
 import fxml.statistics.StatisticsController;
 
@@ -37,6 +38,9 @@ public class mainController {
     @FXML private DebuggerPanelController debuggerController;
     @FXML private StatisticsController statisticsController;
 
+    @FXML private instruction_historyController instructionHistoryController;
+
+
     private int currentDegree = 0;
     private int maxDegree = 0;
 
@@ -45,6 +49,10 @@ public class mainController {
         if (debuggerController != null) {
             debuggerController.setEngine(engine);
             debuggerController.setMainController(this);
+
+            if (instructionsTableController != null && instructionHistoryController != null) {
+                instructionsTableController.setHistoryController(instructionHistoryController);
+            }
         }
 
         highlightComboBox.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {

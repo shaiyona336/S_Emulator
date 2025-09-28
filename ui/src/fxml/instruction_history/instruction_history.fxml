@@ -3,12 +3,14 @@
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 
-<TableView minWidth="0.0" prefHeight="144.0" prefWidth="365.0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
-   <columns>
-      <TableColumn prefWidth="36.80001908540726" text="#" />
-      <TableColumn prefWidth="55.999996185302734" text="B/S" />
-      <TableColumn prefWidth="68.0" text="Label" />
-      <TableColumn text="Instruction" />
-      <TableColumn prefWidth="54.39997863769531" text="Cycles" />
-   </columns>
+<TableView fx:id="historyTableView" minWidth="0.0" prefHeight="144.0" prefWidth="365.0"
+           xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+           fx:controller="fxml.instruction_history.instruction_historyController">
+    <columns>
+        <TableColumn fx:id="numberColumn" prefWidth="36.80001908540726" text="#" />
+        <TableColumn fx:id="typeColumn" prefWidth="55.999996185302734" text="B/S" />
+        <TableColumn fx:id="labelColumn" prefWidth="68.0" text="Label" />
+        <TableColumn fx:id="instructionColumn" text="Instruction" />
+        <TableColumn fx:id="cyclesColumn" prefWidth="54.39997863769531" text="Cycles" />
+    </columns>
 </TableView>
