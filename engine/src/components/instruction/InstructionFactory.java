@@ -60,6 +60,17 @@ public class InstructionFactory {
                 Variable jevVar = VariableFactory.createVariableFromString(jevVarStr);
                 return new JumpEqualVariableInstruction(variable, jevLabel, jevVar, label);
 
+            case "JUMP_EQUAL_FUNCTION":
+                String jefLabelStr = findArgumentValue(sArgs, "JEFunctionLabel");
+                String jefFuncName = findArgumentValue(sArgs, "functionName");
+                String jefFuncArgsStr = findArgumentValue(sArgs, "functionArguments");
+
+                Label jefLabel = LabelFactory.createLabelFromString(jefLabelStr);
+                List<String> jefParsedArgs = ArgumentParser.parseArguments(jefFuncArgsStr);
+
+                return new JumpEqualFunctionInstruction(variable, jefLabel, jefFuncName, jefParsedArgs, label);
+
+
             case "QUOTE":
                 String functionName = findArgumentValue(sArgs, "functionName");
                 String functionArgumentsStr = findArgumentValue(sArgs, "functionArguments");
