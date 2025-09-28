@@ -65,7 +65,7 @@ public class DebuggerPanelController {
     public void setupForNewProgram(ProgramDetails programDetails, int currentDegree) {
         this.loadedProgramDetails = programDetails;
         this.currentProgramDegree = currentDegree;
-        if (isInDebugMode) { stopDebugging(); } //sop any previous debug session
+        if (isInDebugMode) { stopDebugging(); } // Stop any previous debug session
         resetInputsAndOutputs();
 
         if (programDetails != null && programDetails.inputVariables() != null) {
@@ -77,7 +77,7 @@ public class DebuggerPanelController {
         updateComponentStates();
     }
 
-    //UI event handlers
+    // --- UI Event Handlers ---
     @FXML private void handleStartNormalRun() {
         if (engine == null) return;
         try {
@@ -117,11 +117,12 @@ public class DebuggerPanelController {
             if (nextStep.isFinished()) {
                 showAlert(Alert.AlertType.INFORMATION, "Debug Finished", "The program has finished execution.", null);
 
-                //manually create the history record from the final state
+                //create the history record from the final state
                 Context finalContext = nextStep.context();
                 if (finalContext != null) {
                     Long yValue = finalContext.getVariableValue(Variable.OUTPUT);
                     Long[] inputs = buildInputsArray();
+
                     //use the engine's run number counter
                     int runNum = engine.getStatistics().size() + 1;
 
@@ -131,7 +132,7 @@ public class DebuggerPanelController {
                     engine.addRunToHistory(finalRun);
                 }
 
-                //stop the debug session. The subsequent call to onProgramRunFinished()
+                //now stop the debug session. The subsequent call to onProgramRunFinished()
                 //will fetch the history list that now includes our new entry
                 stopDebugging();
             }
@@ -161,7 +162,34 @@ public class DebuggerPanelController {
         cyclesLabel.setText("Total Cycles: N/A");
     }
 
+    public void populateInputs(List<Long> inputs) {
+        if (inputs == null || inputs.isEmpty()) {
+            return;
+        }
+
+        //clear existing inputs first
+        variableInputFields.values().forEach(TextField::clear);
+
+        //populate the input fields
+        for (Map.Entry<String, TextField> entry : variableInputFields.entrySet()) {
+            String varName = entry.getKey();
+            TextField field = entry.getValue();
+
+            //extract the variable number (for example "x1" -> 1)
+            int varIndex = Integer.parseInt(varName.substring(1)) - 1;
+
+            //set the value if it exists in the inputs list
+            if (varIndex < inputs.size()) {
+                Long value = inputs.get(varIndex);
+                if (value != null && value != 0) {
+                    field.setText(value.toString());
+                }
+            }
+        }
+    }
+
     //state and UI management logic
+
     private void updateComponentStates() {
         boolean isProgramLoaded = loadedProgramDetails != null;
 
@@ -178,7 +206,7 @@ public class DebuggerPanelController {
         resumeButton.setDisable(!isInDebugMode);
         stopButton.setDisable(!isInDebugMode);
 
-        //motify the main controller to enable/disable global controls
+        //notify the main controller to enable/disable global controls
         if (mainController != null) {
             mainController.setExpansionControlsDisabled(isInDebugMode);
         }
@@ -187,10 +215,10 @@ public class DebuggerPanelController {
     private void stopDebugging() {
         if (engine != null) engine.stop();
         isInDebugMode = false;
-        updateComponentStates(); //reset UI to normal "program loaded" state
+        updateComponentStates(); // Reset UI to normal "program loaded" state
         if (mainController != null) {
             mainController.clearInstructionHighlight();
-            mainController.onProgramRunFinished(); //update stats after debug run
+            mainController.onProgramRunFinished(); // Update stats after debug run
         }
     }
 
@@ -222,7 +250,13 @@ public class DebuggerPanelController {
         variableInputFields.forEach((name, textField) -> {
             int index = Integer.parseInt(name.substring(1)) - 1;
             String text = textField.getText().trim();
-            if (!text.isEmpty()) inputs[index] = Long.parseLong(text);
+            if (!text.isEmpty()) {
+                try {
+                    inputs[index] = Long.parseLong(text);
+                } catch (NumberFormatException e) {
+                    //ignore invalid input, keep as 0
+                }
+            }
         });
         return inputs;
     }

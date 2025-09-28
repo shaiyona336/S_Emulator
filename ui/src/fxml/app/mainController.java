@@ -5,8 +5,8 @@ import components.engine.StandardEngine;
 import dtos.ProgramDetails;
 import dtos.RunHistoryDetails;
 import fxml.debugger.DebuggerPanelController;
-import fxml.instruction_history.instruction_historyController;
 import fxml.instruction_table.instruction_tableController;
+import fxml.instruction_history.instruction_historyController;
 import fxml.statistics.StatisticsController;
 
 import javafx.collections.FXCollections;
@@ -31,30 +31,38 @@ public class mainController {
     @FXML private Button expandButton;
     @FXML private Label degreeLabel;
     @FXML private ComboBox<String> highlightComboBox;
-
     @FXML private ComboBox<String> programSelectorComboBox;
 
     @FXML private instruction_tableController instructionsTableController;
+    @FXML private instruction_historyController instructionHistoryController;
     @FXML private DebuggerPanelController debuggerController;
     @FXML private StatisticsController statisticsController;
-
-    @FXML private instruction_historyController instructionHistoryController;
-
 
     private int currentDegree = 0;
     private int maxDegree = 0;
 
     @FXML
     public void initialize() {
+        //set up debugger controller
         if (debuggerController != null) {
             debuggerController.setEngine(engine);
             debuggerController.setMainController(this);
+        }
 
-            if (instructionsTableController != null && instructionHistoryController != null) {
-                instructionsTableController.setHistoryController(instructionHistoryController);
+        //connect statistics controller with engine and debugger
+        if (statisticsController != null) {
+            statisticsController.setEngine(engine);
+            if (debuggerController != null) {
+                statisticsController.setDebuggerController(debuggerController);
             }
         }
 
+        //connect instruction table controller with history controller
+        if (instructionsTableController != null && instructionHistoryController != null) {
+            instructionsTableController.setHistoryController(instructionHistoryController);
+        }
+
+        //set up highlight combo box listener
         highlightComboBox.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {
             if (instructionsTableController != null) {
                 String termToHighlight = "";
@@ -65,11 +73,12 @@ public class mainController {
             }
         });
 
+        //set up program selector combo box listener
         programSelectorComboBox.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {
             if (newValue != null && !newValue.equals(oldValue)) {
-                // Set the engine's context to the newly selected program/function
+                //set the engine context to the newly selected program/function
                 engine.setContextProgram(newValue);
-                // Refresh the entire view to show the new context
+                //refresh the entire view to show the new context
                 setupExpansionForNewProgram();
             }
         });
@@ -100,7 +109,7 @@ public class mainController {
                 engine.loadProgramFromFile(file);
                 updateProgress(100, 100);
                 Thread.sleep(500);
-                return engine.getProgramDetails(); // Gets details for the main program initially
+                return engine.getProgramDetails(); //gets details for the main program initially
             }
         };
 
@@ -114,13 +123,12 @@ public class mainController {
                 statisticsController.clearHistory();
             }
 
-            // --- MODIFIED: Populate and set up the program selector ---
+            //set up the program selector
             programSelectorComboBox.setItems(FXCollections.observableArrayList(engine.getDisplayableProgramNames()));
             programSelectorComboBox.getSelectionModel().selectFirst(); // Select the main program by default
             programSelectorComboBox.setDisable(false);
-            // The listener will fire here and set the initial context, so setupExpansionForNewProgram is called correctly
 
-            // This is now handled by the listener, but we call it once to ensure the initial view is correct.
+            //set up the expansion for the new program
             setupExpansionForNewProgram();
         });
 
@@ -170,6 +178,8 @@ public class mainController {
     public void setExpansionControlsDisabled(boolean disabled) {
         expandButton.setDisable(disabled);
         collapseButton.setDisable(disabled);
+        programSelectorComboBox.setDisable(disabled);
+        highlightComboBox.setDisable(disabled);
         if (!disabled) {
             updateButtonStates();
         }
@@ -178,12 +188,12 @@ public class mainController {
     private void setupExpansionForNewProgram() {
         if (!engine.isProgramLoaded()) return;
         currentDegree = 0;
-        maxDegree = engine.getProgramMaxDegree(); // This will now get the max degree of the context program
+        maxDegree = engine.getProgramMaxDegree();
         updateProgramViewToCurrentDegree();
     }
 
     private void updateProgramViewToCurrentDegree() {
-        //this method now gets the details for the currently selected context program at the desired degree
+        //get the details for the currently selected context program at the desired degree
         ProgramDetails programDetails = engine.expandProgram(currentDegree);
 
         if (instructionsTableController != null) {
@@ -191,6 +201,9 @@ public class mainController {
         }
         if (debuggerController != null) {
             debuggerController.setupForNewProgram(programDetails, currentDegree);
+        }
+        if (instructionHistoryController != null) {
+            instructionHistoryController.clearHistory();
         }
 
         populateHighlightComboBox(programDetails);
@@ -222,12 +235,17 @@ public class mainController {
         List<String> highlightOptions = new ArrayList<>();
         highlightOptions.add("None");
 
+        //add labels
         programDetails.labels().stream()
                 .map(label -> "Label: " + label.getStringLabel())
                 .forEach(highlightOptions::add);
+
+        //add input variables
         programDetails.inputVariables().stream()
                 .map(var -> "Var: " + var.getStringVariable())
                 .forEach(highlightOptions::add);
+
+        //add work variables
         programDetails.workVariables().stream()
                 .map(var -> "Var: " + var.getStringVariable())
                 .forEach(highlightOptions::add);
