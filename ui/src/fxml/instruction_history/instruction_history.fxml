@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+
+<TableView minWidth="0.0" prefHeight="144.0" prefWidth="365.0" xmlns="http://javafx.com/javafx/24.0.1" xmlns:fx="http://javafx.com/fxml/1">
+   <columns>
+      <TableColumn prefWidth="36.80001908540726" text="#" />
+      <TableColumn prefWidth="55.999996185302734" text="B/S" />
+      <TableColumn prefWidth="68.0" text="Label" />
+      <TableColumn text="Instruction" />
+      <TableColumn prefWidth="54.39997863769531" text="Cycles" />
+   </columns>
+</TableView>

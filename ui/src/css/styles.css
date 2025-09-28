@@ -1,0 +1,17 @@
+/* for highlight section */
+.highlighted-row {
+    -fx-background-color: #f9f6a7;
+    -fx-font-weight: bold;
+}
+
+/* for debugging part */
+.table-row-cell:selected {
+    -fx-background-color: #5d9cec; /* blue for selection */
+    -fx-text-fill: white;
+}
+
+/* style for a variable that just changed its value */
+.changed-variable-row {
+    -fx-background-color: #a2d7a5; /* light green */
+    -fx-font-weight: bold;
+}
