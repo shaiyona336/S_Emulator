@@ -22,12 +22,26 @@ public class FileUploadServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         response.setContentType("text/plain;charset=UTF-8");
 
-        Part filePart = request.getPart("programFile"); // "programFile" must match the name in the client's form data
+        // Get username from session
+        String username = (String) request.getSession(false).getAttribute("username");
+        if (username == null) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.getWriter().println("Error: User not logged in");
+            return;
+        }
+
+        Part filePart = request.getPart("programFile");
+        if (filePart == null) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.getWriter().println("Error: No file uploaded");
+            return;
+        }
+
         String xmlContent = readFromInputStream(filePart.getInputStream());
 
         EngineManager engineManager = EngineManager.getInstance();
         try {
-            String programName = engineManager.uploadProgram(xmlContent);
+            String programName = engineManager.uploadProgram(username, xmlContent);
             response.setStatus(HttpServletResponse.SC_OK);
             response.getWriter().println("File processed successfully. Program '" + programName + "' loaded.");
         } catch (Exception e) {

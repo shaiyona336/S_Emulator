@@ -1,11 +1,13 @@
 package fxml.statistics;
 
-import components.engine.Engine;
 import dtos.ExecutionDetails;
 import dtos.RunHistoryDetails;
 import fxml.debugger.DebuggerPanelController;
+import http.HttpClientUtil;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.*;
@@ -26,7 +28,6 @@ public class StatisticsController {
     @FXML private Button rerunButton;
 
     private List<RunHistoryDetails> currentRunHistory;
-    private Engine engine;
     private DebuggerPanelController debuggerController;
 
     @FXML
@@ -37,11 +38,9 @@ public class StatisticsController {
         outputYColumn.setCellValueFactory(new PropertyValueFactory<>("outputY"));
         cyclesColumn.setCellValueFactory(new PropertyValueFactory<>("cycles"));
 
-        //initially disable buttons
         showButton.setDisable(true);
         rerunButton.setDisable(true);
 
-        //enable buttons when a row is selected
         statisticsTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldSelection, newSelection) -> {
                     boolean hasSelection = newSelection != null;
@@ -50,13 +49,8 @@ public class StatisticsController {
                 }
         );
 
-        //add button actions
         showButton.setOnAction(e -> showFullResults());
         rerunButton.setOnAction(e -> rerunWithInputs());
-    }
-
-    public void setEngine(Engine engine) {
-        this.engine = engine;
     }
 
     public void setDebuggerController(DebuggerPanelController debuggerController) {
@@ -101,14 +95,12 @@ public class StatisticsController {
         rerunButton.setDisable(true);
     }
 
-
     private void showFullResults() {
         RunHistoryRow selectedRow = statisticsTableView.getSelectionModel().getSelectedItem();
-        if (selectedRow == null || engine == null || currentRunHistory == null) {
+        if (selectedRow == null || currentRunHistory == null) {
             return;
         }
 
-        //find the corresponding RunHistoryDetails
         RunHistoryDetails selectedRun = currentRunHistory.stream()
                 .filter(r -> r.runNumber() == selectedRow.getRunNumber())
                 .findFirst()
@@ -118,30 +110,38 @@ public class StatisticsController {
             return;
         }
 
-        //re-run the program with the same parameters to get full results
-        //this is necessary because we don't store the full context in history
-        try {
-            Long[] inputs = selectedRun.inputs().toArray(new Long[0]);
-            ExecutionDetails results = engine.runProgram(selectedRun.expansionDegree(), inputs);
+        // Re-run via HTTP to get full results
+        Task<ExecutionDetails> rerunTask = new Task<>() {
+            @Override
+            protected ExecutionDetails call() throws Exception {
+                Long[] inputs = selectedRun.inputs().toArray(new Long[0]);
+                return HttpClientUtil.runProgram(selectedRun.expansionDegree(), inputs);
+            }
+        };
 
-            //create and show dialog with full results
-            showResultsDialog(selectedRun, results);
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Error", "Could not retrieve full results", e.getMessage());
-        }
+        rerunTask.setOnSucceeded(e -> {
+            ExecutionDetails results = rerunTask.getValue();
+            Platform.runLater(() -> showResultsDialog(selectedRun, results));
+        });
+
+        rerunTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Error",
+                    "Could not retrieve full results", rerunTask.getException().getMessage());
+        });
+
+        new Thread(rerunTask).start();
     }
-
 
     private void showResultsDialog(RunHistoryDetails runDetails, ExecutionDetails results) {
         Dialog<Void> dialog = new Dialog<>();
         dialog.setTitle("Run #" + runDetails.runNumber() + " - Full Results");
         dialog.setHeaderText("Execution Results - Degree: " + runDetails.expansionDegree());
-        //create content
+
         VBox content = new VBox(10);
         content.setPadding(new Insets(10));
         content.setPrefWidth(500);
         content.setPrefHeight(400);
-        //add execution info
+
         Label infoLabel = new Label(String.format(
                 "Inputs: %s\nTotal Cycles: %d\n",
                 formatInputs(runDetails.inputs()),
@@ -149,7 +149,6 @@ public class StatisticsController {
         ));
         content.getChildren().add(infoLabel);
 
-        //create table for variables
         TableView<VariableRow> variableTable = new TableView<>();
         variableTable.setPrefHeight(300);
 
@@ -167,13 +166,9 @@ public class StatisticsController {
 
         variableTable.getColumns().addAll(typeCol, nameCol, valueCol);
 
-        //put variables to table
         ObservableList<VariableRow> variableRows = FXCollections.observableArrayList();
-
-        //add output variable
         variableRows.add(new VariableRow("Output", "y", runDetails.yValue()));
 
-        //add input variables
         if (results.programDetails() != null && results.programDetails().inputVariables() != null) {
             results.programDetails().inputVariables().forEach(var -> {
                 long value = results.variables().getVariableValue(var);
@@ -181,7 +176,6 @@ public class StatisticsController {
             });
         }
 
-        //add work variables
         if (results.programDetails() != null && results.programDetails().workVariables() != null) {
             results.programDetails().workVariables().forEach(var -> {
                 long value = results.variables().getVariableValue(var);
@@ -192,7 +186,6 @@ public class StatisticsController {
         variableTable.setItems(variableRows);
         content.getChildren().add(variableTable);
 
-        //set dialog content
         DialogPane dialogPane = dialog.getDialogPane();
         dialogPane.setContent(content);
         dialogPane.getButtonTypes().add(ButtonType.CLOSE);
@@ -229,13 +222,14 @@ public class StatisticsController {
     }
 
     private void showAlert(Alert.AlertType type, String title, String header, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
+        Platform.runLater(() -> {
+            Alert alert = new Alert(type);
+            alert.setTitle(title);
+            alert.setHeaderText(header);
+            alert.setContentText(content);
+            alert.showAndWait();
+        });
     }
-
 
     public static class VariableRow {
         private final String type;

@@ -1,14 +1,14 @@
 package fxml.app;
 
-import components.engine.Engine;
-import components.engine.StandardEngine;
 import dtos.ProgramDetails;
 import dtos.RunHistoryDetails;
 import fxml.debugger.DebuggerPanelController;
 import fxml.instruction_table.instruction_tableController;
 import fxml.instruction_history.instruction_historyController;
 import fxml.statistics.StatisticsController;
+import http.HttpClientUtil;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
@@ -18,11 +18,9 @@ import javafx.stage.FileChooser;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class mainController {
-    private Engine engine = new StandardEngine();
 
     @FXML private Button loadButton;
     @FXML private Label loadedFileLabel;
@@ -40,29 +38,28 @@ public class mainController {
 
     private int currentDegree = 0;
     private int maxDegree = 0;
+    private boolean isProgramLoaded = false;
 
     @FXML
     public void initialize() {
-        //set up debugger controller
+        // Set up debugger controller
         if (debuggerController != null) {
-            debuggerController.setEngine(engine);
             debuggerController.setMainController(this);
         }
 
-        //connect statistics controller with engine and debugger
+        // Connect statistics controller with debugger
         if (statisticsController != null) {
-            statisticsController.setEngine(engine);
             if (debuggerController != null) {
                 statisticsController.setDebuggerController(debuggerController);
             }
         }
 
-        //connect instruction table controller with history controller
+        // Connect instruction table controller with history controller
         if (instructionsTableController != null && instructionHistoryController != null) {
             instructionsTableController.setHistoryController(instructionHistoryController);
         }
 
-        //set up highlight combo box listener
+        // Set up highlight combo box listener
         highlightComboBox.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {
             if (instructionsTableController != null) {
                 String termToHighlight = "";
@@ -73,20 +70,17 @@ public class mainController {
             }
         });
 
-        //set up program selector combo box listener
+        // Set up program selector combo box listener
         programSelectorComboBox.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {
             if (newValue != null && !newValue.equals(oldValue)) {
-                //set the engine context to the newly selected program/function
-                engine.setContextProgram(newValue);
-                //refresh the entire view to show the new context
-                setupExpansionForNewProgram();
+                handleContextChange(newValue);
             }
         });
 
         updateButtonStates();
         updateDegreeLabel();
         highlightComboBox.setDisable(true);
-        programSelectorComboBox.setDisable(true); // Disable until a file is loaded
+        programSelectorComboBox.setDisable(true);
     }
 
     @FXML
@@ -106,10 +100,18 @@ public class mainController {
             protected ProgramDetails call() throws Exception {
                 updateProgress(30, 100);
                 Thread.sleep(500);
-                engine.loadProgramFromFile(file);
+
+                // Upload file via HTTP
+                HttpClientUtil.uploadFile(file);
+
+                updateProgress(70, 100);
+
+                // Get program details
+                ProgramDetails details = HttpClientUtil.getProgramDetails();
+
                 updateProgress(100, 100);
                 Thread.sleep(500);
-                return engine.getProgramDetails(); //gets details for the main program initially
+                return details;
             }
         };
 
@@ -119,59 +121,104 @@ public class mainController {
 
         loadTask.setOnSucceeded(e -> {
             loadedFileLabel.setText("Loaded: " + file.getName());
+            isProgramLoaded = true;
+
             if (statisticsController != null) {
                 statisticsController.clearHistory();
             }
 
-            //set up the program selector
-            programSelectorComboBox.setItems(FXCollections.observableArrayList(engine.getDisplayableProgramNames()));
-            programSelectorComboBox.getSelectionModel().selectFirst(); // Select the main program by default
-            programSelectorComboBox.setDisable(false);
+            // Set up the program selector
+            Task<List<String>> namesTask = new Task<>() {
+                @Override
+                protected List<String> call() throws Exception {
+                    return HttpClientUtil.getProgramNames();
+                }
+            };
 
-            //set up the expansion for the new program
-            setupExpansionForNewProgram();
+            namesTask.setOnSucceeded(ev -> {
+                programSelectorComboBox.setItems(FXCollections.observableArrayList(namesTask.getValue()));
+                programSelectorComboBox.getSelectionModel().selectFirst();
+                programSelectorComboBox.setDisable(false);
+                setupExpansionForNewProgram();
+            });
+
+            new Thread(namesTask).start();
         });
 
         loadTask.setOnFailed(e -> {
             loadedFileLabel.setText("Failed to load file.");
+            isProgramLoaded = false;
             programSelectorComboBox.getItems().clear();
             programSelectorComboBox.setDisable(true);
-            showAlert(Alert.AlertType.ERROR, "File Load Error", "Could not load file.", loadTask.getException().getMessage());
+            showAlert(Alert.AlertType.ERROR, "File Load Error",
+                    "Could not load file.", loadTask.getException().getMessage());
         });
 
         new Thread(loadTask).start();
     }
 
+    private void handleContextChange(String newContext) {
+        Task<Void> contextTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                HttpClientUtil.setContextProgram(newContext);
+                return null;
+            }
+        };
+
+        contextTask.setOnSucceeded(e -> setupExpansionForNewProgram());
+        contextTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Error",
+                    "Failed to change context", contextTask.getException().getMessage());
+        });
+
+        new Thread(contextTask).start();
+    }
+
     @FXML
     void handleCollapseClick(ActionEvent event) {
-        if (!engine.isProgramLoaded() || currentDegree <= 0) return;
+        if (!isProgramLoaded || currentDegree <= 0) return;
         currentDegree--;
         updateProgramViewToCurrentDegree();
     }
 
     @FXML
     void handleExpandClick(ActionEvent event) {
-        if (!engine.isProgramLoaded() || currentDegree >= maxDegree) return;
+        if (!isProgramLoaded || currentDegree >= maxDegree) return;
         currentDegree++;
         updateProgramViewToCurrentDegree();
     }
 
     public void onProgramRunFinished() {
-        if (engine.isProgramLoaded() && statisticsController != null) {
-            List<RunHistoryDetails> history = engine.getStatistics();
-            statisticsController.loadStatistics(history);
-        }
+        if (!isProgramLoaded || statisticsController == null) return;
+
+        Task<List<RunHistoryDetails>> statsTask = new Task<>() {
+            @Override
+            protected List<RunHistoryDetails> call() throws Exception {
+                return HttpClientUtil.getStatistics();
+            }
+        };
+
+        statsTask.setOnSucceeded(e -> {
+            statisticsController.loadStatistics(statsTask.getValue());
+        });
+
+        new Thread(statsTask).start();
     }
 
     public void highlightInstruction(int instructionNumber) {
         if (instructionsTableController != null) {
-            instructionsTableController.highlightInstruction(instructionNumber);
+            Platform.runLater(() ->
+                    instructionsTableController.highlightInstruction(instructionNumber)
+            );
         }
     }
 
     public void clearInstructionHighlight() {
         if (instructionsTableController != null) {
-            instructionsTableController.clearInstructionHighlight();
+            Platform.runLater(() ->
+                    instructionsTableController.clearInstructionHighlight()
+            );
         }
     }
 
@@ -186,33 +233,60 @@ public class mainController {
     }
 
     private void setupExpansionForNewProgram() {
-        if (!engine.isProgramLoaded()) return;
-        currentDegree = 0;
-        maxDegree = engine.getProgramMaxDegree();
-        updateProgramViewToCurrentDegree();
+        if (!isProgramLoaded) return;
+
+        Task<Integer> maxDegreeTask = new Task<>() {
+            @Override
+            protected Integer call() throws Exception {
+                return HttpClientUtil.getMaxDegree();
+            }
+        };
+
+        maxDegreeTask.setOnSucceeded(e -> {
+            currentDegree = 0;
+            maxDegree = maxDegreeTask.getValue();
+            updateProgramViewToCurrentDegree();
+        });
+
+        new Thread(maxDegreeTask).start();
     }
 
     private void updateProgramViewToCurrentDegree() {
-        //get the details for the currently selected context program at the desired degree
-        ProgramDetails programDetails = engine.expandProgram(currentDegree);
+        Task<ProgramDetails> expandTask = new Task<>() {
+            @Override
+            protected ProgramDetails call() throws Exception {
+                return HttpClientUtil.expandProgram(currentDegree);
+            }
+        };
 
-        if (instructionsTableController != null) {
-            instructionsTableController.loadProgramData(programDetails);
-        }
-        if (debuggerController != null) {
-            debuggerController.setupForNewProgram(programDetails, currentDegree);
-        }
-        if (instructionHistoryController != null) {
-            instructionHistoryController.clearHistory();
-        }
+        expandTask.setOnSucceeded(e -> {
+            ProgramDetails programDetails = expandTask.getValue();
 
-        populateHighlightComboBox(programDetails);
-        updateDegreeLabel();
-        updateButtonStates();
+            if (instructionsTableController != null) {
+                instructionsTableController.loadProgramData(programDetails);
+            }
+            if (debuggerController != null) {
+                debuggerController.setupForNewProgram(programDetails, currentDegree);
+            }
+            if (instructionHistoryController != null) {
+                instructionHistoryController.clearHistory();
+            }
+
+            populateHighlightComboBox(programDetails);
+            updateDegreeLabel();
+            updateButtonStates();
+        });
+
+        expandTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Error",
+                    "Failed to expand program", expandTask.getException().getMessage());
+        });
+
+        new Thread(expandTask).start();
     }
 
     private void updateDegreeLabel() {
-        if (engine.isProgramLoaded()) {
+        if (isProgramLoaded) {
             degreeLabel.setText(String.format("Degree: %d / %d", currentDegree, maxDegree));
         } else {
             degreeLabel.setText("N/A");
@@ -220,9 +294,8 @@ public class mainController {
     }
 
     private void updateButtonStates() {
-        boolean isLoaded = engine.isProgramLoaded();
-        collapseButton.setDisable(!isLoaded || currentDegree <= 0);
-        expandButton.setDisable(!isLoaded || currentDegree >= maxDegree);
+        collapseButton.setDisable(!isProgramLoaded || currentDegree <= 0);
+        expandButton.setDisable(!isProgramLoaded || currentDegree >= maxDegree);
     }
 
     private void populateHighlightComboBox(ProgramDetails programDetails) {
@@ -235,17 +308,14 @@ public class mainController {
         List<String> highlightOptions = new ArrayList<>();
         highlightOptions.add("None");
 
-        //add labels
         programDetails.labels().stream()
                 .map(label -> "Label: " + label.getStringLabel())
                 .forEach(highlightOptions::add);
 
-        //add input variables
         programDetails.inputVariables().stream()
                 .map(var -> "Var: " + var.getStringVariable())
                 .forEach(highlightOptions::add);
 
-        //add work variables
         programDetails.workVariables().stream()
                 .map(var -> "Var: " + var.getStringVariable())
                 .forEach(highlightOptions::add);
@@ -255,10 +325,12 @@ public class mainController {
     }
 
     private void showAlert(Alert.AlertType type, String title, String header, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
+        Platform.runLater(() -> {
+            Alert alert = new Alert(type);
+            alert.setTitle(title);
+            alert.setHeaderText(header);
+            alert.setContentText(content);
+            alert.showAndWait();
+        });
     }
 }

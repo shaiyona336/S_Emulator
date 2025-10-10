@@ -1,17 +1,19 @@
 package fxml.debugger;
 
-import components.engine.Engine;
 import components.executor.Context;
+import components.variable.Variable;
 import dtos.ExecutionDetails;
 import dtos.ProgramDetails;
 import dtos.DebugStepDetails;
-import components.variable.Variable;
 import dtos.RunHistoryDetails;
 import fxml.VariableOutputRow;
 import fxml.app.mainController;
+import http.HttpClientUtil;
 
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
@@ -24,7 +26,6 @@ import java.util.stream.Collectors;
 
 public class DebuggerPanelController {
 
-    private Engine engine;
     private mainController mainController;
     private ProgramDetails loadedProgramDetails;
     private int currentProgramDegree;
@@ -55,17 +56,19 @@ public class DebuggerPanelController {
                 }
             }
         });
-        //start with all controls disabled
         updateComponentStates();
     }
 
-    public void setMainController(mainController mainController) { this.mainController = mainController; }
-    public void setEngine(Engine engine) { this.engine = engine; }
+    public void setMainController(mainController mainController) {
+        this.mainController = mainController;
+    }
 
     public void setupForNewProgram(ProgramDetails programDetails, int currentDegree) {
         this.loadedProgramDetails = programDetails;
         this.currentProgramDegree = currentDegree;
-        if (isInDebugMode) { stopDebugging(); } // Stop any previous debug session
+        if (isInDebugMode) {
+            stopDebugging();
+        }
         resetInputsAndOutputs();
 
         if (programDetails != null && programDetails.inputVariables() != null) {
@@ -73,41 +76,74 @@ public class DebuggerPanelController {
                     .sorted(Comparator.comparingInt(v -> Integer.parseInt(v.getStringVariable().substring(1))))
                     .forEach(this::createInputFieldForVariable);
         }
-        //update the UI state now that a program is loaded
         updateComponentStates();
     }
 
     // --- UI Event Handlers ---
-    @FXML private void handleStartNormalRun() {
-        if (engine == null) return;
-        try {
-            ExecutionDetails executionDetails = engine.runProgram(currentProgramDegree, buildInputsArray());
+
+    @FXML
+    private void handleStartNormalRun() {
+        Task<ExecutionDetails> runTask = new Task<>() {
+            @Override
+            protected ExecutionDetails call() throws Exception {
+                return HttpClientUtil.runProgram(currentProgramDegree, buildInputsArray());
+            }
+        };
+
+        runTask.setOnSucceeded(e -> {
+            ExecutionDetails executionDetails = runTask.getValue();
             displayExecutionResults(executionDetails);
             if (mainController != null) mainController.onProgramRunFinished();
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Execution Error", "Program encountered an error.", e.getMessage());
-        }
+        });
+
+        runTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Execution Error",
+                    "Program encountered an error.", runTask.getException().getMessage());
+        });
+
+        new Thread(runTask).start();
     }
 
-    @FXML private void handleStartDebugRun() {
-        if (engine == null) return;
-        try {
-            Long[] inputs = buildInputsArray();
-            DebugStepDetails initialStep = engine.startDebugging(currentProgramDegree, inputs);
+    @FXML
+    private void handleStartDebugRun() {
+        Task<DebugStepDetails> debugTask = new Task<>() {
+            @Override
+            protected DebugStepDetails call() throws Exception {
+                return HttpClientUtil.startDebugging(currentProgramDegree, buildInputsArray());
+            }
+        };
+
+        debugTask.setOnSucceeded(e -> {
+            DebugStepDetails initialStep = debugTask.getValue();
             isInDebugMode = true;
             updateComponentStates();
             displayDebugStepResults(initialStep);
-            if (mainController != null) mainController.highlightInstruction(1);
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Debug Error", "Could not start debug session.", e.getMessage());
-        }
+            if (mainController != null) {
+                mainController.highlightInstruction(1);
+            }
+        });
+
+        debugTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Debug Error",
+                    "Could not start debug session.", debugTask.getException().getMessage());
+        });
+
+        new Thread(debugTask).start();
     }
 
     @FXML
     private void handleStepOverClick() {
-        if (!isInDebugMode || engine == null) return;
-        try {
-            DebugStepDetails nextStep = engine.stepOver();
+        if (!isInDebugMode) return;
+
+        Task<DebugStepDetails> stepTask = new Task<>() {
+            @Override
+            protected DebugStepDetails call() throws Exception {
+                return HttpClientUtil.stepOver();
+            }
+        };
+
+        stepTask.setOnSucceeded(e -> {
+            DebugStepDetails nextStep = stepTask.getValue();
             displayDebugStepResults(nextStep);
 
             if (mainController != null) {
@@ -115,48 +151,63 @@ public class DebuggerPanelController {
             }
 
             if (nextStep.isFinished()) {
-                showAlert(Alert.AlertType.INFORMATION, "Debug Finished", "The program has finished execution.", null);
-
-                //create the history record from the final state
-                Context finalContext = nextStep.context();
-                if (finalContext != null) {
-                    Long yValue = finalContext.getVariableValue(Variable.OUTPUT);
-                    Long[] inputs = buildInputsArray();
-
-                    //use the engine's run number counter
-                    int runNum = engine.getStatistics().size() + 1;
-
-                    RunHistoryDetails finalRun = new RunHistoryDetails(runNum, currentProgramDegree, Arrays.asList(inputs), yValue, finalContext.getTotalCycles());
-
-                    //add the completed run to the engine's history
-                    engine.addRunToHistory(finalRun);
-                }
-
-                //now stop the debug session. The subsequent call to onProgramRunFinished()
-                //will fetch the history list that now includes our new entry
+                showAlert(Alert.AlertType.INFORMATION, "Debug Finished",
+                        "The program has finished execution.", null);
                 stopDebugging();
             }
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Step Over Error", "An error occurred during execution.", e.getMessage());
+        });
+
+        stepTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Step Over Error",
+                    "An error occurred during execution.", stepTask.getException().getMessage());
             stopDebugging();
-        }
+        });
+
+        new Thread(stepTask).start();
     }
 
-    @FXML private void handleResumeClick() {
-        if (!isInDebugMode || engine == null) return;
-        try {
-            ExecutionDetails finalDetails = engine.resume();
+    @FXML
+    private void handleResumeClick() {
+        if (!isInDebugMode) return;
+
+        Task<ExecutionDetails> resumeTask = new Task<>() {
+            @Override
+            protected ExecutionDetails call() throws Exception {
+                return HttpClientUtil.resume();
+            }
+        };
+
+        resumeTask.setOnSucceeded(e -> {
+            ExecutionDetails finalDetails = resumeTask.getValue();
             displayExecutionResults(finalDetails);
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Resume Error", "An error occurred during execution.", e.getMessage());
-        } finally {
             stopDebugging();
-        }
+        });
+
+        resumeTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Resume Error",
+                    "An error occurred during execution.", resumeTask.getException().getMessage());
+            stopDebugging();
+        });
+
+        new Thread(resumeTask).start();
     }
 
-    @FXML private void handleStopClick() { stopDebugging(); }
+    @FXML
+    private void handleStopClick() {
+        Task<Void> stopTask = new Task<>() {
+            @Override
+            protected Void call() throws Exception {
+                HttpClientUtil.stopDebugging();
+                return null;
+            }
+        };
 
-    @FXML private void handleClearInputs() {
+        stopTask.setOnSucceeded(e -> stopDebugging());
+        new Thread(stopTask).start();
+    }
+
+    @FXML
+    private void handleClearInputs() {
         variableInputFields.values().forEach(TextField::clear);
         variablesTableView.getItems().clear();
         cyclesLabel.setText("Total Cycles: N/A");
@@ -167,18 +218,13 @@ public class DebuggerPanelController {
             return;
         }
 
-        //clear existing inputs first
         variableInputFields.values().forEach(TextField::clear);
 
-        //populate the input fields
         for (Map.Entry<String, TextField> entry : variableInputFields.entrySet()) {
             String varName = entry.getKey();
             TextField field = entry.getValue();
-
-            //extract the variable number (for example "x1" -> 1)
             int varIndex = Integer.parseInt(varName.substring(1)) - 1;
 
-            //set the value if it exists in the inputs list
             if (varIndex < inputs.size()) {
                 Long value = inputs.get(varIndex);
                 if (value != null && value != 0) {
@@ -188,37 +234,32 @@ public class DebuggerPanelController {
         }
     }
 
-    //state and UI management logic
+    // State and UI management logic
 
     private void updateComponentStates() {
         boolean isProgramLoaded = loadedProgramDetails != null;
 
-        //normal run controls are enabled only if a program is loaded AND not in debug mode
         startRunButton.setDisable(!isProgramLoaded || isInDebugMode);
         startDebugButton.setDisable(!isProgramLoaded || isInDebugMode);
         clearInputsButton.setDisable(!isProgramLoaded || isInDebugMode);
 
-        //input text fields are enabled only if a program is loaded AND not in debug mode
         variableInputFields.values().forEach(tf -> tf.setDisable(!isProgramLoaded || isInDebugMode));
 
-        //debug controls are enabled ONLY when in debug mode
         stepOverButton.setDisable(!isInDebugMode);
         resumeButton.setDisable(!isInDebugMode);
         stopButton.setDisable(!isInDebugMode);
 
-        //notify the main controller to enable/disable global controls
         if (mainController != null) {
             mainController.setExpansionControlsDisabled(isInDebugMode);
         }
     }
 
     private void stopDebugging() {
-        if (engine != null) engine.stop();
         isInDebugMode = false;
-        updateComponentStates(); // Reset UI to normal "program loaded" state
+        updateComponentStates();
         if (mainController != null) {
             mainController.clearInstructionHighlight();
-            mainController.onProgramRunFinished(); // Update stats after debug run
+            mainController.onProgramRunFinished();
         }
     }
 
@@ -244,7 +285,9 @@ public class DebuggerPanelController {
 
     private Long[] buildInputsArray() {
         if (variableInputFields.isEmpty()) return new Long[0];
-        int maxVarNum = variableInputFields.keySet().stream().mapToInt(name -> Integer.parseInt(name.substring(1))).max().orElse(0);
+        int maxVarNum = variableInputFields.keySet().stream()
+                .mapToInt(name -> Integer.parseInt(name.substring(1)))
+                .max().orElse(0);
         Long[] inputs = new Long[maxVarNum];
         Arrays.fill(inputs, 0L);
         variableInputFields.forEach((name, textField) -> {
@@ -254,7 +297,7 @@ public class DebuggerPanelController {
                 try {
                     inputs[index] = Long.parseLong(text);
                 } catch (NumberFormatException e) {
-                    //ignore invalid input, keep as 0
+                    // Keep as 0
                 }
             }
         });
@@ -277,11 +320,14 @@ public class DebuggerPanelController {
     private void displayContext(Context context) {
         if (context == null || context.getVariables() == null) return;
         Map<String, Long> currentVariableState = new HashMap<>();
-        context.getVariables().forEach((var, val) -> currentVariableState.put(var.getStringVariable(), val));
+        context.getVariables().forEach((var, val) ->
+                currentVariableState.put(var.getStringVariable(), val));
+
         ObservableList<VariableOutputRow> variableRows = FXCollections.observableArrayList();
         currentVariableState.forEach((name, value) -> {
             VariableOutputRow row = new VariableOutputRow(name, String.valueOf(value));
-            if (previousVariableState.containsKey(name) && !previousVariableState.get(name).equals(value) ||
+            if (previousVariableState.containsKey(name) &&
+                    !previousVariableState.get(name).equals(value) ||
                     (!previousVariableState.containsKey(name) && value != 0)) {
                 row.setChanged(true);
             }
@@ -292,10 +338,12 @@ public class DebuggerPanelController {
     }
 
     private void showAlert(Alert.AlertType type, String title, String header, String content) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(header);
-        alert.setContentText(content);
-        alert.showAndWait();
+        Platform.runLater(() -> {
+            Alert alert = new Alert(type);
+            alert.setTitle(title);
+            alert.setHeaderText(header);
+            alert.setContentText(content);
+            alert.showAndWait();
+        });
     }
 }
