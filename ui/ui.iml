@@ -8,7 +8,17 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="engine" />
-    <orderEntry type="module" module-name="dto" />
     <orderEntry type="library" name="lib" level="project" />
+    <orderEntry type="module" module-name="dto" exported="" />
+    <orderEntry type="module-library" exported="">
+      <library>
+        <CLASSES>
+          <root url="file://$MODULE_DIR$/../lib/http" />
+        </CLASSES>
+        <JAVADOC />
+        <SOURCES />
+        <jarDirectory url="file://$MODULE_DIR$/../lib/http" recursive="false" />
+      </library>
+    </orderEntry>
   </component>
 </module>
