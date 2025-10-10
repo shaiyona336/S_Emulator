@@ -5,6 +5,7 @@
       <module fileurl="file://$PROJECT_DIR$/S-Emulator.iml" filepath="$PROJECT_DIR$/S-Emulator.iml" />
       <module fileurl="file://$PROJECT_DIR$/dto/dto.iml" filepath="$PROJECT_DIR$/dto/dto.iml" />
       <module fileurl="file://$PROJECT_DIR$/engine/engine.iml" filepath="$PROJECT_DIR$/engine/engine.iml" />
+      <module fileurl="file://$PROJECT_DIR$/s-emulator-server/s-emulator-server.iml" filepath="$PROJECT_DIR$/s-emulator-server/s-emulator-server.iml" />
       <module fileurl="file://$PROJECT_DIR$/ui/ui.iml" filepath="$PROJECT_DIR$/ui/ui.iml" />
     </modules>
   </component>

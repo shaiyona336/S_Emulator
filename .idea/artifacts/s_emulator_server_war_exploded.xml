@@ -1,0 +1,13 @@
+<component name="ArtifactManager">
+  <artifact type="exploded-war" name="s-emulator-server:war exploded">
+    <output-path>$PROJECT_DIR$/out/artifacts/s_emulator_server_war_exploded</output-path>
+    <root id="root">
+      <element id="directory" name="WEB-INF">
+        <element id="directory" name="classes">
+          <element id="module-output" name="s-emulator-server" />
+        </element>
+      </element>
+      <element id="javaee-facet-resources" facet="s-emulator-server/web/Web" />
+    </root>
+  </artifact>
+</component>
