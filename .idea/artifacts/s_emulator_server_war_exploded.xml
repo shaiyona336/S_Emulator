@@ -5,6 +5,17 @@
       <element id="directory" name="WEB-INF">
         <element id="directory" name="classes">
           <element id="module-output" name="s-emulator-server" />
+          <element id="module-output" name="dto" />
+          <element id="module-output" name="engine" />
+        </element>
+        <element id="directory" name="lib">
+          <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/angus-activation.jar" />
+          <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/jakarta.activation-api.jar" />
+          <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/jakarta.xml.bind-api.jar" />
+          <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/jaxb-core.jar" />
+          <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/jaxb-impl.jar" />
+          <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/jaxb-jxc.jar" />
+          <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/jaxb-xjc.jar" />
         </element>
       </element>
       <element id="javaee-facet-resources" facet="s-emulator-server/web/Web" />

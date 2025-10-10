@@ -31,5 +31,7 @@
         <jarDirectory url="file://$MODULE_DIR$/../lib/http" recursive="false" />
       </library>
     </orderEntry>
+    <orderEntry type="library" name="mod" level="project" />
+    <orderEntry type="module" module-name="engine" />
   </component>
 </module>
