@@ -9,8 +9,23 @@ public class User {
         this.credits = initialCredits;
     }
 
-    // Add getters, setters, and methods to manage credits
-    public String getUsername() { return username; }
-    public int getCredits() { return credits; }
-    public void deductCredits(int amount) { this.credits -= amount; }
+    public String getUsername() {
+        return username;
+    }
+
+    public int getCredits() {
+        return credits;
+    }
+
+    public void addCredits(int amount) {
+        this.credits += amount;
+    }
+
+    public boolean deductCredits(int amount) {
+        if (credits >= amount) {
+            credits -= amount;
+            return true;
+        }
+        return false;
+    }
 }

@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="war" name="s-emulator:war">
+    <output-path>$PROJECT_DIR$/out/artifacts/s_emulator</output-path>
+    <root id="archive" name="s-emulator.war">
+      <element id="artifact" artifact-name="s-emulator-server:war exploded" />
+    </root>
+  </artifact>
+</component>

@@ -20,7 +20,7 @@ public class HttpClientUtil {
             .cookieJar(new SimpleCookieJar())
             .build();
 
-    private final static String BASE_URL = "http://localhost:8080/s-emulator";
+    private final static String BASE_URL = "http://localhost:8080/s_emulator_server_war_exploded";
     private final static Gson GSON = new Gson();
 
     // ========== Authentication ==========
