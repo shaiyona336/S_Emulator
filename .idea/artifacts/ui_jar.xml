@@ -21,6 +21,7 @@
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/javafx-sdk-22.0.2/lib/javafx.controls.jar" path-in-jar="/" />
       <element id="extracted-dir" path="$PROJECT_DIR$/lib/javafx-sdk-22.0.2/lib/javafx.graphics.jar" path-in-jar="/" />
       <element id="dir-copy" path="$PROJECT_DIR$/lib/javafx-sdk-22.0.2/bin" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/ui/libs/gson-2.11.0.jar" path-in-jar="/" />
     </root>
   </artifact>
 </component>

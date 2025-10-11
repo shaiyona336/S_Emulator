@@ -6,272 +6,286 @@ import dtos.DebugStepDetails;
 import dtos.ExecutionDetails;
 import dtos.ProgramDetails;
 import dtos.RunHistoryDetails;
-import okhttp3.*;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.*;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.util.*;
 
 public class HttpClientUtil {
 
-    private final static OkHttpClient HTTP_CLIENT = new OkHttpClient.Builder()
-            .cookieJar(new SimpleCookieJar())
-            .build();
-
-    private final static String BASE_URL = "http://localhost:8080/s_emulator_server_war_exploded";
+    private final static String BASE_URL = "http://localhost:8080/s-emulator";
     private final static Gson GSON = new Gson();
+    private static Map<String, String> cookies = new HashMap<>();
 
     // ========== Authentication ==========
 
     public static void login(String username) throws IOException {
-        RequestBody formBody = new FormBody.Builder()
-                .add("username", username)
-                .build();
+        URL url = new URL(BASE_URL + "/login");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/login")
-                .post(formBody)
-                .build();
+        String params = "username=" + URLEncoder.encode(username, "UTF-8");
 
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Login failed: " + response.body().string());
-            }
+        try (OutputStream os = connection.getOutputStream()) {
+            os.write(params.getBytes("UTF-8"));
+        }
+
+        int responseCode = connection.getResponseCode();
+        saveCookies(connection);
+
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            String error = readErrorStream(connection);
+            throw new IOException("Login failed: " + error);
         }
     }
 
     // ========== File Upload ==========
 
     public static String uploadFile(File file) throws IOException {
-        RequestBody requestBody = new MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart("programFile", file.getName(),
-                        RequestBody.create(file, MediaType.parse("application/xml")))
-                .build();
+        String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
+        String LINE_FEED = "\r\n";
 
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/upload-file")
-                .post(requestBody)
-                .build();
+        URL url = new URL(BASE_URL + "/upload-file");
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        addCookiesToConnection(connection);
 
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("File upload failed: " + response.body().string());
-            }
-            return response.body().string();
+        try (OutputStream outputStream = connection.getOutputStream();
+             PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, "UTF-8"), true)) {
+
+            // Add file part
+            writer.append("--").append(boundary).append(LINE_FEED);
+            writer.append("Content-Disposition: form-data; name=\"programFile\"; filename=\"")
+                    .append(file.getName()).append("\"").append(LINE_FEED);
+            writer.append("Content-Type: application/xml").append(LINE_FEED);
+            writer.append(LINE_FEED);
+            writer.flush();
+
+            // Write file content
+            Files.copy(file.toPath(), outputStream);
+            outputStream.flush();
+
+            writer.append(LINE_FEED);
+            writer.append("--").append(boundary).append("--").append(LINE_FEED);
         }
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            String error = readErrorStream(connection);
+            throw new IOException("File upload failed: " + error);
+        }
+
+        return readResponse(connection);
     }
 
     // ========== Program Operations ==========
 
     public static ProgramDetails getProgramDetails() throws IOException {
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/program-details")
-                .get()
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to get program details: " + response.body().string());
-            }
-            return GSON.fromJson(response.body().string(), ProgramDetails.class);
-        }
+        String response = sendGetRequest("/program-details");
+        return GSON.fromJson(response, ProgramDetails.class);
     }
 
     public static int getMaxDegree() throws IOException {
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/max-degree")
-                .get()
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to get max degree: " + response.body().string());
-            }
-            MaxDegreeResponse resp = GSON.fromJson(response.body().string(), MaxDegreeResponse.class);
-            return resp.maxDegree;
-        }
+        String response = sendGetRequest("/max-degree");
+        MaxDegreeResponse resp = GSON.fromJson(response, MaxDegreeResponse.class);
+        return resp.maxDegree;
     }
 
     public static ProgramDetails expandProgram(int degree) throws IOException {
-        RequestBody formBody = new FormBody.Builder()
-                .add("degree", String.valueOf(degree))
-                .build();
+        Map<String, String> params = new HashMap<>();
+        params.put("degree", String.valueOf(degree));
 
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/expand-program")
-                .post(formBody)
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to expand program: " + response.body().string());
-            }
-            return GSON.fromJson(response.body().string(), ProgramDetails.class);
-        }
+        String response = sendPostFormRequest("/expand-program", params);
+        return GSON.fromJson(response, ProgramDetails.class);
     }
 
     public static List<String> getProgramNames() throws IOException {
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/program-names")
-                .get()
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to get program names: " + response.body().string());
-            }
-            Type listType = new TypeToken<List<String>>(){}.getType();
-            return GSON.fromJson(response.body().string(), listType);
-        }
+        String response = sendGetRequest("/program-names");
+        Type listType = new TypeToken<List<String>>(){}.getType();
+        return GSON.fromJson(response, listType);
     }
 
     public static void setContextProgram(String programName) throws IOException {
-        RequestBody formBody = new FormBody.Builder()
-                .add("programName", programName)
-                .build();
-
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/set-context")
-                .post(formBody)
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to set context: " + response.body().string());
-            }
-        }
+        Map<String, String> params = new HashMap<>();
+        params.put("programName", programName);
+        sendPostFormRequest("/set-context", params);
     }
 
     // ========== Execution Operations ==========
 
     public static ExecutionDetails runProgram(int degree, Long[] inputs) throws IOException {
         RunRequest runRequest = new RunRequest(degree, inputs);
-        String jsonBody = GSON.toJson(runRequest);
-
-        RequestBody body = RequestBody.create(
-                jsonBody,
-                MediaType.parse("application/json")
-        );
-
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/run-program")
-                .post(body)
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to run program: " + response.body().string());
-            }
-            return GSON.fromJson(response.body().string(), ExecutionDetails.class);
-        }
+        String response = sendPostJsonRequest("/run-program", runRequest);
+        return GSON.fromJson(response, ExecutionDetails.class);
     }
 
     // ========== Debug Operations ==========
 
     public static DebugStepDetails startDebugging(int degree, Long[] inputs) throws IOException {
         DebugStartRequest debugRequest = new DebugStartRequest(degree, inputs);
-        String jsonBody = GSON.toJson(debugRequest);
-
-        RequestBody body = RequestBody.create(
-                jsonBody,
-                MediaType.parse("application/json")
-        );
-
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/debug?action=start")
-                .post(body)
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to start debugging: " + response.body().string());
-            }
-            return GSON.fromJson(response.body().string(), DebugStepDetails.class);
-        }
+        String response = sendPostJsonRequest("/debug?action=start", debugRequest);
+        return GSON.fromJson(response, DebugStepDetails.class);
     }
 
     public static DebugStepDetails stepOver() throws IOException {
-        RequestBody body = RequestBody.create("", MediaType.parse("application/json"));
-
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/debug?action=step")
-                .post(body)
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to step over: " + response.body().string());
-            }
-            return GSON.fromJson(response.body().string(), DebugStepDetails.class);
-        }
+        String response = sendPostJsonRequest("/debug?action=step", "");
+        return GSON.fromJson(response, DebugStepDetails.class);
     }
 
     public static ExecutionDetails resume() throws IOException {
-        RequestBody body = RequestBody.create("", MediaType.parse("application/json"));
-
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/debug?action=resume")
-                .post(body)
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to resume: " + response.body().string());
-            }
-            return GSON.fromJson(response.body().string(), ExecutionDetails.class);
-        }
+        String response = sendPostJsonRequest("/debug?action=resume", "");
+        return GSON.fromJson(response, ExecutionDetails.class);
     }
 
     public static void stopDebugging() throws IOException {
-        RequestBody body = RequestBody.create("", MediaType.parse("application/json"));
-
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/debug?action=stop")
-                .post(body)
-                .build();
-
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to stop debugging: " + response.body().string());
-            }
-        }
+        sendPostJsonRequest("/debug?action=stop", "");
     }
 
     // ========== Statistics ==========
 
     public static List<RunHistoryDetails> getStatistics() throws IOException {
-        Request request = new Request.Builder()
-                .url(BASE_URL + "/statistics")
-                .get()
-                .build();
+        String response = sendGetRequest("/statistics");
+        Type listType = new TypeToken<List<RunHistoryDetails>>(){}.getType();
+        return GSON.fromJson(response, listType);
+    }
 
-        try (Response response = HTTP_CLIENT.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                throw new IOException("Failed to get statistics: " + response.body().string());
+    // ========== Helper Methods ==========
+
+    private static String sendGetRequest(String endpoint) throws IOException {
+        URL url = new URL(BASE_URL + endpoint);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        addCookiesToConnection(connection);
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            String error = readErrorStream(connection);
+            throw new IOException("Request failed: " + error);
+        }
+
+        return readResponse(connection);
+    }
+
+    private static String sendPostFormRequest(String endpoint, Map<String, String> params) throws IOException {
+        URL url = new URL(BASE_URL + endpoint);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+        addCookiesToConnection(connection);
+
+        // Build form parameters
+        StringBuilder postData = new StringBuilder();
+        for (Map.Entry<String, String> param : params.entrySet()) {
+            if (postData.length() != 0) {
+                postData.append('&');
             }
-            Type listType = new TypeToken<List<RunHistoryDetails>>(){}.getType();
-            return GSON.fromJson(response.body().string(), listType);
+            postData.append(URLEncoder.encode(param.getKey(), "UTF-8"));
+            postData.append('=');
+            postData.append(URLEncoder.encode(param.getValue(), "UTF-8"));
+        }
+
+        try (OutputStream os = connection.getOutputStream()) {
+            os.write(postData.toString().getBytes("UTF-8"));
+        }
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            String error = readErrorStream(connection);
+            throw new IOException("Request failed: " + error);
+        }
+
+        return readResponse(connection);
+    }
+
+    private static String sendPostJsonRequest(String endpoint, Object requestBody) throws IOException {
+        String jsonBody = (requestBody instanceof String) ? (String) requestBody : GSON.toJson(requestBody);
+
+        URL url = new URL(BASE_URL + endpoint);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("POST");
+        connection.setDoOutput(true);
+        connection.setRequestProperty("Content-Type", "application/json");
+        addCookiesToConnection(connection);
+
+        try (OutputStream os = connection.getOutputStream()) {
+            os.write(jsonBody.getBytes("UTF-8"));
+        }
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            String error = readErrorStream(connection);
+            throw new IOException("Request failed: " + error);
+        }
+
+        return readResponse(connection);
+    }
+
+    private static String readResponse(HttpURLConnection connection) throws IOException {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(connection.getInputStream(), "UTF-8"))) {
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            return response.toString();
+        }
+    }
+
+    private static String readErrorStream(HttpURLConnection connection) throws IOException {
+        InputStream errorStream = connection.getErrorStream();
+        if (errorStream == null) {
+            return "Unknown error";
+        }
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(errorStream, "UTF-8"))) {
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                response.append(line);
+            }
+            return response.toString();
+        }
+    }
+
+    private static void saveCookies(HttpURLConnection connection) {
+        Map<String, List<String>> headerFields = connection.getHeaderFields();
+        List<String> cookiesHeader = headerFields.get("Set-Cookie");
+
+        if (cookiesHeader != null) {
+            for (String cookie : cookiesHeader) {
+                String[] parts = cookie.split(";")[0].split("=", 2);
+                if (parts.length == 2) {
+                    cookies.put(parts[0], parts[1]);
+                }
+            }
+        }
+    }
+
+    private static void addCookiesToConnection(HttpURLConnection connection) {
+        if (!cookies.isEmpty()) {
+            StringBuilder cookieHeader = new StringBuilder();
+            for (Map.Entry<String, String> entry : cookies.entrySet()) {
+                if (cookieHeader.length() > 0) {
+                    cookieHeader.append("; ");
+                }
+                cookieHeader.append(entry.getKey()).append("=").append(entry.getValue());
+            }
+            connection.setRequestProperty("Cookie", cookieHeader.toString());
         }
     }
 
     // ========== Helper Classes ==========
-
-    private static class SimpleCookieJar implements CookieJar {
-        private final List<Cookie> allCookies = new ArrayList<>();
-
-        @Override
-        public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
-            allCookies.addAll(cookies);
-        }
-
-        @Override
-        public List<Cookie> loadForRequest(HttpUrl url) {
-            return allCookies;
-        }
-    }
 
     private static class RunRequest {
         int degree;
