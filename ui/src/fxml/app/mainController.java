@@ -41,6 +41,23 @@ public class mainController {
     private boolean isProgramLoaded = false;
 
     @FXML
+    private Label usernameLabel;  // Add this to your FXML if you want to display username
+
+    private String currentUsername;
+
+    // This method is called from LoginController after successful login
+    public void setUsername(String username) {
+        this.currentUsername = username;
+        if (usernameLabel != null) {
+            usernameLabel.setText("Logged in as: " + username);
+        }
+    }
+
+    public String getCurrentUsername() {
+        return currentUsername;
+    }
+
+    @FXML
     public void initialize() {
         // Set up debugger controller
         if (debuggerController != null) {

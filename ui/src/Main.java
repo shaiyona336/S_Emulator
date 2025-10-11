@@ -1,39 +1,45 @@
-import components.engine.Engine;
-import components.engine.StandardEngine;
 import javafx.application.Application;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.stage.Stage;
+import fxml.Login.LoginController;
 
-import java.io.IOException;
-
-
-import static javafx.application.Application.launch;
-
-public class Main  extends Application {
-    public static void main(String[] args) {
-//        LogicManager logicManager = new LogicManager();
-//        logicManager.run();
-        launch(args);
-
-
-    }
-
+public class Main extends Application {
 
     @Override
-    public void start(Stage primaryStage) throws IOException {
-        Engine engine = new StandardEngine();
-        FXMLLoader fxmlLoader = new FXMLLoader();
+    public void start(Stage primaryStage) throws Exception {
+        // Load the login screen first
+        FXMLLoader loader = new FXMLLoader();
 
-        Parent root = FXMLLoader.load(getClass().getResource("/fxml/app/abc3.fxml"));
-        Scene scene = new Scene(root, 800, 600);
-        scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
-        primaryStage.setTitle("Hello World!");
+        // Try to load the resource
+        java.net.URL fxmlLocation = getClass().getResource("/fxml/Login/login.fxml");
+
+        if (fxmlLocation == null) {
+            System.err.println("ERROR: Could not find /fxml/Login/login.fxml");
+            System.err.println("Trying alternative path...");
+            fxmlLocation = getClass().getResource("fxml/Login/login.fxml");
+        }
+
+        if (fxmlLocation == null) {
+            throw new RuntimeException("Could not find login.fxml in resources!");
+        }
+
+        loader.setLocation(fxmlLocation);
+        Parent root = loader.load();
+
+        // Get the controller and pass the stage
+        LoginController controller = loader.getController();
+        controller.setPrimaryStage(primaryStage);
+
+        // Set up the scene
+        Scene scene = new Scene(root, 400, 350);
+        primaryStage.setTitle("S-Emulator - Login");
         primaryStage.setScene(scene);
         primaryStage.show();
+    }
 
-
-
+    public static void main(String[] args) {
+        launch(args);
     }
 }
