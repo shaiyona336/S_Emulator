@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/21"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="fxml.dashboard.DashboardController"
+            stylesheets="@/css/styles.css">
+
+    <!-- Top Bar -->
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #2c3e50; -fx-padding: 10;">
+            <Label fx:id="usernameLabel" text="User: " style="-fx-text-fill: white; -fx-font-size: 16px; -fx-font-weight: bold;"/>
+            <Region HBox.hgrow="ALWAYS"/>
+            <Label text="Available Credits:" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
+            <Label fx:id="creditsLabel" text="0" style="-fx-text-fill: #2ecc71; -fx-font-size: 16px; -fx-font-weight: bold;"/>
+            <Button fx:id="chargeCreditsButton" text="Charge Credits" onAction="#handleChargeCredits"
+                    style="-fx-background-color: #27ae60; -fx-text-fill: white;"/>
+            <Button fx:id="loadFileButton" text="Load File" onAction="#handleLoadFile"
+                    style="-fx-background-color: #3498db; -fx-text-fill: white;"/>
+        </HBox>
+    </top>
+
+    <!-- Main Content -->
+    <center>
+        <SplitPane dividerPositions="0.25, 0.75" orientation="HORIZONTAL">
+            <!-- Left: Users Table -->
+            <VBox spacing="5">
+                <padding><Insets top="5" right="5" bottom="5" left="5"/></padding>
+                <Label text="Available Users" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                <TableView fx:id="usersTableView" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="userNameColumn" text="Name" prefWidth="80"/>
+                        <TableColumn fx:id="userProgramsColumn" text="Programs" prefWidth="60"/>
+                        <TableColumn fx:id="userFunctionsColumn" text="Functions" prefWidth="60"/>
+                        <TableColumn fx:id="userCreditsColumn" text="Credits" prefWidth="60"/>
+                        <TableColumn fx:id="userUsedCreditsColumn" text="Used" prefWidth="60"/>
+                        <TableColumn fx:id="userRunsColumn" text="Runs" prefWidth="50"/>
+                    </columns>
+                </TableView>
+                <Button fx:id="unselectUserButton" text="Unselect User" onAction="#handleUnselectUser" maxWidth="Infinity"/>
+            </VBox>
+
+            <!-- Middle: Programs and Functions -->
+            <VBox spacing="5">
+                <padding><Insets top="5" right="5" bottom="5" left="5"/></padding>
+
+                <!-- Programs Table -->
+                <Label text="Available Programs" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                <TableView fx:id="programsTableView" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="programNameColumn" text="Program" prefWidth="120"/>
+                        <TableColumn fx:id="programOwnerColumn" text="Owner" prefWidth="80"/>
+                        <TableColumn fx:id="programInstructionsColumn" text="Instructions" prefWidth="80"/>
+                        <TableColumn fx:id="programMaxDegreeColumn" text="Max Degree" prefWidth="80"/>
+                        <TableColumn fx:id="programRunsColumn" text="Runs" prefWidth="60"/>
+                        <TableColumn fx:id="programAvgCostColumn" text="Avg Cost" prefWidth="70"/>
+                    </columns>
+                </TableView>
+                <Button fx:id="executeProgramButton" text="Execute Program" onAction="#handleExecuteProgram" maxWidth="Infinity"/>
+
+                <Separator/>
+
+                <!-- Functions Table -->
+                <Label text="Available Functions" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                <TableView fx:id="functionsTableView" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="functionNameColumn" text="Function" prefWidth="100"/>
+                        <TableColumn fx:id="functionProgramColumn" text="From Program" prefWidth="120"/>
+                        <TableColumn fx:id="functionOwnerColumn" text="Owner" prefWidth="80"/>
+                        <TableColumn fx:id="functionInstructionsColumn" text="Instructions" prefWidth="80"/>
+                        <TableColumn fx:id="functionMaxDegreeColumn" text="Max Degree" prefWidth="80"/>
+                    </columns>
+                </TableView>
+                <Button fx:id="executeFunctionButton" text="Execute Function" onAction="#handleExecuteFunction" maxWidth="Infinity"/>
+            </VBox>
+
+            <!-- Right: User History/Statistics -->
+            <VBox spacing="5">
+                <padding><Insets top="5" right="5" bottom="5" left="5"/></padding>
+                <Label fx:id="historyTitleLabel" text="My History / Statistics" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                <TableView fx:id="historyTableView" VBox.vgrow="ALWAYS">
+                    <columns>
+                        <TableColumn fx:id="historyRunNumColumn" text="Run #" prefWidth="50"/>
+                        <TableColumn fx:id="historyTypeColumn" text="Type" prefWidth="70"/>
+                        <TableColumn fx:id="historyNameColumn" text="Name" prefWidth="100"/>
+                        <TableColumn fx:id="historyArchColumn" text="Arch" prefWidth="50"/>
+                        <TableColumn fx:id="historyDegreeColumn" text="Degree" prefWidth="60"/>
+                        <TableColumn fx:id="historyYValueColumn" text="Y" prefWidth="60"/>
+                        <TableColumn fx:id="historyCyclesColumn" text="Cycles" prefWidth="60"/>
+                    </columns>
+                </TableView>
+                <HBox spacing="10" alignment="CENTER">
+                    <Button fx:id="showStatusButton" text="Show Status" onAction="#handleShowStatus"/>
+                    <Button fx:id="rerunButton" text="Re-run" onAction="#handleRerun"/>
+                </HBox>
+            </VBox>
+        </SplitPane>
+    </center>
+
+    <!-- Bottom: Status Bar -->
+    <bottom>
+        <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-background-color: #ecf0f1; -fx-padding: 5;">
+            <Label fx:id="statusLabel" text="Ready" style="-fx-font-size: 12px;"/>
+            <ProgressIndicator fx:id="loadingIndicator" visible="false" prefWidth="20" prefHeight="20"/>
+        </HBox>
+    </bottom>
+</BorderPane>

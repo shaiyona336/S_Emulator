@@ -2,34 +2,28 @@ package manager;
 
 import components.engine.Engine;
 import components.engine.StandardEngine;
+import components.jaxb.generated.SFunction;
 import components.jaxb.generated.SProgram;
 import components.program.JaxbConversion;
 import components.program.Program;
-import dtos.DebugStepDetails;
-import dtos.ExecutionDetails;
-import dtos.ProgramDetails;
-import dtos.RunHistoryDetails;
+import dtos.*;
 
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Unmarshaller;
 
 import java.io.StringReader;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class EngineManager {
     private static final EngineManager instance = new EngineManager();
 
-    // Map of username -> User
+    // Global storage
     private final Map<String, User> users = new ConcurrentHashMap<>();
-
-    // Map of username -> Engine (each user has their own engine instance)
     private final Map<String, Engine> userEngines = new ConcurrentHashMap<>();
-
-    // Map to store loaded programs globally
-    private final Map<String, Program> loadedPrograms = new ConcurrentHashMap<>();
+    private final Map<String, ProgramInfo> globalPrograms = new ConcurrentHashMap<>(); // programName -> ProgramInfo
+    private final Map<String, FunctionInfo> globalFunctions = new ConcurrentHashMap<>(); // functionName -> FunctionInfo
 
     private EngineManager() {}
 
@@ -50,13 +44,14 @@ public class EngineManager {
         return users.get(username);
     }
 
+    public Collection<User> getAllUsers() {
+        return users.values();
+    }
+
     public Engine getUserEngine(String username) {
         return userEngines.get(username);
     }
 
-    /**
-     * Uploads and parses a program file for a specific user
-     */
     public synchronized String uploadProgram(String username, String xmlContent) throws Exception {
         Engine engine = getUserEngine(username);
         if (engine == null) {
@@ -69,32 +64,91 @@ public class EngineManager {
             StringReader reader = new StringReader(xmlContent);
             SProgram sProgram = (SProgram) unmarshaller.unmarshal(reader);
 
+            String programName = sProgram.getName();
+
             // Check if program already exists
-            if (loadedPrograms.containsKey(sProgram.getName())) {
-                throw new Exception("A program with the name '" + sProgram.getName() + "' already exists.");
+            if (globalPrograms.containsKey(programName)) {
+                throw new Exception("A program with the name '" + programName + "' already exists.");
             }
 
-            Program program = JaxbConversion.SProgramToProgram(sProgram);
-            loadedPrograms.put(program.getName(), program);
+            // Validate all functions are defined or already exist globally
+            if (sProgram.getSFunctions() != null) {
+                for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
+                    String funcName = sFunc.getName();
+                    if (globalFunctions.containsKey(funcName)) {
+                        throw new Exception("Function '" + funcName + "' already exists.");
+                    }
+                }
+            }
 
-            // Load the program into the user's engine
-            // We'll create a temp file for this
+            // Convert and store
+            Program program = JaxbConversion.SProgramToProgram(sProgram);
+
+            // Calculate instruction count at degree 0
+            int instructionCount = program.getInstructions().size();
+            int maxDegree = program.calculateMaxDegree(new HashMap<>());
+
+            ProgramInfo programInfo = new ProgramInfo(programName, username, program,
+                    instructionCount, maxDegree);
+            globalPrograms.put(programName, programInfo);
+
+            // Store functions
+            if (sProgram.getSFunctions() != null) {
+                for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
+                    Program funcProgram = JaxbConversion.SFunctionToProgram(sFunc);
+                    int funcInstructionCount = funcProgram.getInstructions().size();
+                    int funcMaxDegree = funcProgram.calculateMaxDegree(new HashMap<>());
+
+                    FunctionInfo funcInfo = new FunctionInfo(
+                            sFunc.getName(),
+                            sFunc.getUserString(),
+                            programName,
+                            username,
+                            funcProgram,
+                            funcInstructionCount,
+                            funcMaxDegree
+                    );
+                    globalFunctions.put(sFunc.getName(), funcInfo);
+                }
+            }
+
+            // Update user stats
+            User user = users.get(username);
+            if (user != null) {
+                user.incrementProgramsUploaded();
+                int functionsCount = sProgram.getSFunctions() != null ?
+                        sProgram.getSFunctions().getSFunction().size() : 0;
+                user.incrementFunctionsUploaded(functionsCount);
+            }
+
+            // Load into user's engine
             java.io.File tempFile = java.io.File.createTempFile("program_", ".xml");
             java.io.FileWriter writer = new java.io.FileWriter(tempFile);
             writer.write(xmlContent);
             writer.close();
-
             engine.loadProgramFromFile(tempFile);
             tempFile.delete();
 
-            return program.getName();
+            return programName;
 
         } catch (JAXBException e) {
             throw new Exception("Invalid XML format: " + e.getMessage(), e);
         }
     }
 
-    // Program operations
+    public Collection<ProgramInfo> getAllPrograms() {
+        return globalPrograms.values();
+    }
+
+    public Collection<FunctionInfo> getAllFunctions() {
+        return globalFunctions.values();
+    }
+
+    public ProgramInfo getProgramInfo(String programName) {
+        return globalPrograms.get(programName);
+    }
+
+    // Existing methods...
     public ProgramDetails getProgramDetails(String username) {
         Engine engine = getUserEngine(username);
         if (engine != null && engine.isProgramLoaded()) {
@@ -134,7 +188,6 @@ public class EngineManager {
         }
     }
 
-    // Execution operations
     public ExecutionDetails runProgram(String username, int degree, Long[] inputs) {
         Engine engine = getUserEngine(username);
         if (engine != null && engine.isProgramLoaded()) {
@@ -143,7 +196,6 @@ public class EngineManager {
         return null;
     }
 
-    // Debug operations
     public DebugStepDetails startDebugging(String username, int degree, Long[] inputs) {
         Engine engine = getUserEngine(username);
         if (engine != null && engine.isProgramLoaded()) {
@@ -175,12 +227,79 @@ public class EngineManager {
         }
     }
 
-    // Statistics
     public List<RunHistoryDetails> getStatistics(String username) {
         Engine engine = getUserEngine(username);
         if (engine != null) {
             return engine.getStatistics();
         }
         return null;
+    }
+
+    // Inner classes
+    public static class ProgramInfo {
+        private final String name;
+        private final String owner;
+        private final Program program;
+        private final int instructionCount;
+        private final int maxDegree;
+        private int runCount = 0;
+        private int totalCost = 0;
+
+        public ProgramInfo(String name, String owner, Program program,
+                           int instructionCount, int maxDegree) {
+            this.name = name;
+            this.owner = owner;
+            this.program = program;
+            this.instructionCount = instructionCount;
+            this.maxDegree = maxDegree;
+        }
+
+        public void recordRun(int cost) {
+            runCount++;
+            totalCost += cost;
+        }
+
+        public int getAvgCost() {
+            return runCount > 0 ? totalCost / runCount : 0;
+        }
+
+        // Getters
+        public String getName() { return name; }
+        public String getOwner() { return owner; }
+        public Program getProgram() { return program; }
+        public int getInstructionCount() { return instructionCount; }
+        public int getMaxDegree() { return maxDegree; }
+        public int getRunCount() { return runCount; }
+    }
+
+    public static class FunctionInfo {
+        private final String name;
+        private final String userString;
+        private final String programName;
+        private final String owner;
+        private final Program program;
+        private final int instructionCount;
+        private final int maxDegree;
+
+        public FunctionInfo(String name, String userString, String programName,
+                            String owner, Program program,
+                            int instructionCount, int maxDegree) {
+            this.name = name;
+            this.userString = userString;
+            this.programName = programName;
+            this.owner = owner;
+            this.program = program;
+            this.instructionCount = instructionCount;
+            this.maxDegree = maxDegree;
+        }
+
+        // Getters
+        public String getName() { return name; }
+        public String getUserString() { return userString; }
+        public String getProgramName() { return programName; }
+        public String getOwner() { return owner; }
+        public Program getProgram() { return program; }
+        public int getInstructionCount() { return instructionCount; }
+        public int getMaxDegree() { return maxDegree; }
     }
 }

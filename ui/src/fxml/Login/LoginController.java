@@ -87,24 +87,24 @@ public class LoginController {
 
     private void navigateToMainScreen(String username) {
         try {
-            // Load the main screen
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/app/abc3.fxml"));
+            // Load the dashboard screen instead
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/dashboard/dashboard.fxml"));
             Parent root = loader.load();
 
-            // Get the controller and pass the username if needed
+            // Get the controller and pass the username
             Object controller = loader.getController();
-            if (controller instanceof mainController) {
-                ((mainController) controller).setUsername(username);
+            if (controller instanceof fxml.dashboard.DashboardController) {
+                ((fxml.dashboard.DashboardController) controller).setUsername(username);
             }
 
             // Create new scene and show it
-            Scene scene = new Scene(root);
+            Scene scene = new Scene(root, 1200, 800); // Larger size for dashboard
             primaryStage.setScene(scene);
-            primaryStage.setTitle("S-Emulator - " + username);
+            primaryStage.setTitle("S-Emulator Dashboard - " + username);
 
         } catch (IOException e) {
             e.printStackTrace();
-            showError("Failed to load main screen: " + e.getMessage());
+            showError("Failed to load dashboard: " + e.getMessage());
         }
     }
 
@@ -123,4 +123,5 @@ public class LoginController {
             errorLabel.setVisible(true);
         });
     }
+
 }
