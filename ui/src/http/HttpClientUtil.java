@@ -6,6 +6,7 @@ import dtos.DebugStepDetails;
 import dtos.ExecutionDetails;
 import dtos.ProgramDetails;
 import dtos.RunHistoryDetails;
+import utils.GsonProvider;
 
 import java.io.*;
 import java.lang.reflect.Type;
@@ -18,7 +19,7 @@ import java.util.*;
 public class HttpClientUtil {
 
     private final static String BASE_URL = "http://localhost:8080/s-emulator";
-    private final static Gson GSON = new Gson();
+    private final static Gson GSON = GsonProvider.getGson();
     private static Map<String, String> cookies = new HashMap<>();
 
     // ========== Authentication ==========

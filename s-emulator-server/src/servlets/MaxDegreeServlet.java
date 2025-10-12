@@ -6,12 +6,13 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import manager.EngineManager;
+import utils.GsonProvider;
 
 import java.io.IOException;
 
 @WebServlet(name = "MaxDegreeServlet", urlPatterns = "/max-degree")
 public class MaxDegreeServlet extends HttpServlet {
-    private final Gson gson = new Gson();
+    private final Gson gson = GsonProvider.getGson();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {

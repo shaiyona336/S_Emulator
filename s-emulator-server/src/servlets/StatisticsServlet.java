@@ -7,13 +7,14 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import manager.EngineManager;
+import utils.GsonProvider;
 
 import java.io.IOException;
 import java.util.List;
 
 @WebServlet(name = "StatisticsServlet", urlPatterns = "/statistics")
 public class StatisticsServlet extends HttpServlet {
-    private final Gson gson = new Gson();
+    private final Gson gson = GsonProvider.getGson();
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {

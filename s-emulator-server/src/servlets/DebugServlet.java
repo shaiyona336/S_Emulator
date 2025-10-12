@@ -8,13 +8,14 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import manager.EngineManager;
+import utils.GsonProvider;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 
 @WebServlet(name = "DebugServlet", urlPatterns = "/debug")
 public class DebugServlet extends HttpServlet {
-    private final Gson gson = new Gson();
+    private final Gson gson = GsonProvider.getGson();
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {

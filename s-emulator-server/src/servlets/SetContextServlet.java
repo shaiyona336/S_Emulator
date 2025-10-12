@@ -6,12 +6,13 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import manager.EngineManager;
+import utils.GsonProvider;
 
 import java.io.IOException;
 
 @WebServlet(name = "SetContextServlet", urlPatterns = "/set-context")
 public class SetContextServlet extends HttpServlet {
-    private final Gson gson = new Gson();
+    private final Gson gson = GsonProvider.getGson();
 
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
