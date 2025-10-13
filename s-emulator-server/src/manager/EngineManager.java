@@ -71,15 +71,8 @@ public class EngineManager {
                 throw new Exception("A program with the name '" + programName + "' already exists.");
             }
 
-            // Validate all functions are defined or already exist globally
-            if (sProgram.getSFunctions() != null) {
-                for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
-                    String funcName = sFunc.getName();
-                    if (globalFunctions.containsKey(funcName)) {
-                        throw new Exception("Function '" + funcName + "' already exists.");
-                    }
-                }
-            }
+            // REMOVED: Validation that prevented duplicate functions
+            // Functions can be shared across programs!
 
             // Convert and store
             Program program = JaxbConversion.SProgramToProgram(sProgram);
@@ -92,9 +85,19 @@ public class EngineManager {
                     instructionCount, maxDegree);
             globalPrograms.put(programName, programInfo);
 
-            // Store functions
+            // Store functions (only if they don't already exist)
             if (sProgram.getSFunctions() != null) {
                 for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
+                    String funcName = sFunc.getName();
+
+                    // Check if function already exists
+                    if (globalFunctions.containsKey(funcName)) {
+                        // Function already exists - skip it (functions are shared)
+                        System.out.println("Function '" + funcName + "' already exists. Skipping (shared function).");
+                        continue;
+                    }
+
+                    // Add new function
                     Program funcProgram = JaxbConversion.SFunctionToProgram(sFunc);
                     int funcInstructionCount = funcProgram.getInstructions().size();
                     int funcMaxDegree = funcProgram.calculateMaxDegree(new HashMap<>());
@@ -108,7 +111,7 @@ public class EngineManager {
                             funcInstructionCount,
                             funcMaxDegree
                     );
-                    globalFunctions.put(sFunc.getName(), funcInfo);
+                    globalFunctions.put(funcName, funcInfo);
                 }
             }
 
@@ -116,9 +119,16 @@ public class EngineManager {
             User user = users.get(username);
             if (user != null) {
                 user.incrementProgramsUploaded();
-                int functionsCount = sProgram.getSFunctions() != null ?
-                        sProgram.getSFunctions().getSFunction().size() : 0;
-                user.incrementFunctionsUploaded(functionsCount);
+                // Only count NEW functions added
+                int newFunctionsCount = 0;
+                if (sProgram.getSFunctions() != null) {
+                    for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
+                        if (!globalFunctions.containsKey(sFunc.getName())) {
+                            newFunctionsCount++;
+                        }
+                    }
+                }
+                user.incrementFunctionsUploaded(newFunctionsCount);
             }
 
             // Load into user's engine
