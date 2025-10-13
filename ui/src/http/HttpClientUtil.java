@@ -330,6 +330,20 @@ public class HttpClientUtil {
         return GSON.fromJson(response, listType);
     }
 
+    public static void addCredits(int amount) throws IOException {
+        AddCreditsRequest request = new AddCreditsRequest(amount);
+        String response = sendPostJsonRequest("/add-credits", request);
+        // Response is just a success message
+    }
+
+    private static class AddCreditsRequest {
+        int amount;
+
+        AddCreditsRequest(int amount) {
+            this.amount = amount;
+        }
+    }
+
     // Add these inner classes at the end of HttpClientUtil
     public static class UserInfo {
         public String username;

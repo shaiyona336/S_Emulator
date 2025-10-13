@@ -76,6 +76,16 @@ public class DashboardController {
     private String currentUsername;
     private Timer refreshTimer;
 
+    // Fields to preserve selections during refresh
+    private String selectedProgramName = null;
+    private String selectedFunctionName = null;
+    private String selectedUserName = null;
+
+    // Flags to prevent listener interference during refresh
+    private boolean isRefreshingPrograms = false;
+    private boolean isRefreshingFunctions = false;
+    private boolean isRefreshingUsers = false;
+
     @FXML
     public void initialize() {
         setupUserTable();
@@ -89,13 +99,31 @@ public class DashboardController {
         rerunButton.setDisable(true);
         unselectUserButton.setDisable(true);
 
-        // Selection listeners
+        // Selection listeners - SAVE selections (but only when NOT refreshing)
         programsTableView.getSelectionModel().selectedItemProperty().addListener(
-                (obs, oldVal, newVal) -> executeProgramButton.setDisable(newVal == null)
+                (obs, oldVal, newVal) -> {
+                    executeProgramButton.setDisable(newVal == null);
+                    if (!isRefreshingPrograms) {  // Only update if not refreshing
+                        if (newVal != null) {
+                            selectedProgramName = newVal.getName();
+                        } else {
+                            selectedProgramName = null;
+                        }
+                    }
+                }
         );
 
         functionsTableView.getSelectionModel().selectedItemProperty().addListener(
-                (obs, oldVal, newVal) -> executeFunctionButton.setDisable(newVal == null)
+                (obs, oldVal, newVal) -> {
+                    executeFunctionButton.setDisable(newVal == null);
+                    if (!isRefreshingFunctions) {  // Only update if not refreshing
+                        if (newVal != null) {
+                            selectedFunctionName = newVal.getName();
+                        } else {
+                            selectedFunctionName = null;
+                        }
+                    }
+                }
         );
 
         historyTableView.getSelectionModel().selectedItemProperty().addListener(
@@ -109,10 +137,14 @@ public class DashboardController {
         usersTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldVal, newVal) -> {
                     unselectUserButton.setDisable(newVal == null);
-                    if (newVal != null) {
-                        loadUserHistory(newVal.getUsername());
-                    } else {
-                        loadMyHistory();
+                    if (!isRefreshingUsers) {  // Only update if not refreshing
+                        if (newVal != null) {
+                            selectedUserName = newVal.getUsername();
+                            loadUserHistory(newVal.getUsername());
+                        } else {
+                            selectedUserName = null;
+                            loadMyHistory();
+                        }
                     }
                 }
         );
@@ -173,9 +205,24 @@ public class DashboardController {
             try {
                 int credits = Integer.parseInt(amount);
                 if (credits > 0) {
-                    // TODO: Call servlet to add credits
-                    showStatus("Added " + credits + " credits");
-                    refreshData();
+                    loadingIndicator.setVisible(true);
+                    new Thread(() -> {
+                        try {
+                            HttpClientUtil.addCredits(credits);
+                            Platform.runLater(() -> {
+                                showStatus("Added " + credits + " credits");
+                                refreshData();
+                                loadingIndicator.setVisible(false);
+                            });
+                        } catch (Exception e) {
+                            Platform.runLater(() -> {
+                                showError("Failed to add credits: " + e.getMessage());
+                                loadingIndicator.setVisible(false);
+                            });
+                        }
+                    }).start();
+                } else {
+                    showError("Amount must be positive");
                 }
             } catch (NumberFormatException e) {
                 showError("Invalid amount");
@@ -247,6 +294,11 @@ public class DashboardController {
 
     private void navigateToExecutionScreen(String programName, String type) {
         try {
+            // Stop auto-refresh before navigating
+            if (refreshTimer != null) {
+                refreshTimer.cancel();
+            }
+
             HttpClientUtil.setContextProgram(programName);
 
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/app/abc3.fxml"));
@@ -256,7 +308,7 @@ public class DashboardController {
             if (controller instanceof fxml.app.mainController) {
                 fxml.app.mainController mainCtrl = (fxml.app.mainController) controller;
                 mainCtrl.setUsername(currentUsername);
-                mainCtrl.initializeWithProgram();  // This loads the program
+                mainCtrl.initializeWithProgram();
             }
 
             Stage stage = (Stage) loadFileButton.getScene().getWindow();
@@ -293,7 +345,20 @@ public class DashboardController {
                             user.totalRuns
                     ));
                 }
-                Platform.runLater(() -> usersTableView.setItems(userRows));
+                Platform.runLater(() -> {
+                    isRefreshingUsers = true;  // Set flag before updating
+                    usersTableView.setItems(userRows);
+                    // Restore selection
+                    if (selectedUserName != null) {
+                        for (UserRow row : userRows) {
+                            if (row.getUsername().equals(selectedUserName)) {
+                                usersTableView.getSelectionModel().select(row);
+                                break;
+                            }
+                        }
+                    }
+                    isRefreshingUsers = false;  // Clear flag after updating
+                });
             } catch (Exception e) {
                 Platform.runLater(() -> showStatus("Failed to load users: " + e.getMessage()));
             }
@@ -315,7 +380,20 @@ public class DashboardController {
                             prog.avgCost
                     ));
                 }
-                Platform.runLater(() -> programsTableView.setItems(programRows));
+                Platform.runLater(() -> {
+                    isRefreshingPrograms = true;  // Set flag before updating
+                    programsTableView.setItems(programRows);
+                    // Restore selection
+                    if (selectedProgramName != null) {
+                        for (ProgramRow row : programRows) {
+                            if (row.getName().equals(selectedProgramName)) {
+                                programsTableView.getSelectionModel().select(row);
+                                break;
+                            }
+                        }
+                    }
+                    isRefreshingPrograms = false;  // Clear flag after updating
+                });
             } catch (Exception e) {
                 Platform.runLater(() -> showStatus("Failed to load programs: " + e.getMessage()));
             }
@@ -336,7 +414,20 @@ public class DashboardController {
                             func.maxDegree
                     ));
                 }
-                Platform.runLater(() -> functionsTableView.setItems(functionRows));
+                Platform.runLater(() -> {
+                    isRefreshingFunctions = true;  // Set flag before updating
+                    functionsTableView.setItems(functionRows);
+                    // Restore selection
+                    if (selectedFunctionName != null) {
+                        for (FunctionRow row : functionRows) {
+                            if (row.getName().equals(selectedFunctionName)) {
+                                functionsTableView.getSelectionModel().select(row);
+                                break;
+                            }
+                        }
+                    }
+                    isRefreshingFunctions = false;  // Clear flag after updating
+                });
             } catch (Exception e) {
                 Platform.runLater(() -> showStatus("Failed to load functions: " + e.getMessage()));
             }
@@ -344,7 +435,6 @@ public class DashboardController {
     }
 
     private void loadMyCredits() {
-        // For now, just get from users list
         new Thread(() -> {
             try {
                 List<HttpClientUtil.UserInfo> users = HttpClientUtil.getAllUsers();
@@ -370,8 +460,6 @@ public class DashboardController {
         historyTitleLabel.setText(username + "'s History / Statistics");
         // TODO: Load selected user's history
     }
-
-
 
     private void startAutoRefresh() {
         refreshTimer = new Timer(true);
