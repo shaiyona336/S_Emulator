@@ -1,11 +1,9 @@
 package fxml.app;
 
 import dtos.ProgramDetails;
-import dtos.RunHistoryDetails;
 import fxml.debugger.DebuggerPanelController;
 import fxml.instruction_table.instruction_tableController;
 import fxml.instruction_history.instruction_historyController;
-import fxml.statistics.StatisticsController;
 import http.HttpClientUtil;
 
 import javafx.application.Platform;
@@ -13,70 +11,53 @@ import javafx.collections.FXCollections;
 import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 public class mainController {
 
-    @FXML private Button loadButton;
-    @FXML private Label loadedFileLabel;
-    @FXML private ProgressBar loadingProgressBar;
+    // Remove loadButton and loadingProgressBar
+    // Remove loadedFileLabel
+
+    // Add new top bar elements
+    @FXML private Label usernameLabel;
+    @FXML private Label creditsLabel;
+
     @FXML private Button collapseButton;
     @FXML private Button expandButton;
     @FXML private Label degreeLabel;
     @FXML private ComboBox<String> highlightComboBox;
     @FXML private ComboBox<String> programSelectorComboBox;
+    @FXML private Button backToDashboardButton;
 
     @FXML private instruction_tableController instructionsTableController;
     @FXML private instruction_historyController instructionHistoryController;
     @FXML private DebuggerPanelController debuggerController;
-    @FXML private StatisticsController statisticsController;
 
     private int currentDegree = 0;
     private int maxDegree = 0;
     private boolean isProgramLoaded = false;
-
-    @FXML
-    private Label usernameLabel;  // Add this to your FXML if you want to display username
-
     private String currentUsername;
-
-    // This method is called from LoginController after successful login
-    public void setUsername(String username) {
-        this.currentUsername = username;
-        if (usernameLabel != null) {
-            usernameLabel.setText("Logged in as: " + username);
-        }
-    }
-
-    public String getCurrentUsername() {
-        return currentUsername;
-    }
+    private Timer creditRefreshTimer;
 
     @FXML
     public void initialize() {
-        // Set up debugger controller
         if (debuggerController != null) {
             debuggerController.setMainController(this);
         }
 
-        // Connect statistics controller with debugger
-        if (statisticsController != null) {
-            if (debuggerController != null) {
-                statisticsController.setDebuggerController(debuggerController);
-            }
-        }
-
-        // Connect instruction table controller with history controller
         if (instructionsTableController != null && instructionHistoryController != null) {
             instructionsTableController.setHistoryController(instructionHistoryController);
         }
 
-        // Set up highlight combo box listener
         highlightComboBox.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {
             if (instructionsTableController != null) {
                 String termToHighlight = "";
@@ -87,7 +68,6 @@ public class mainController {
             }
         });
 
-        // Set up program selector combo box listener
         programSelectorComboBox.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {
             if (newValue != null && !newValue.equals(oldValue)) {
                 handleContextChange(newValue);
@@ -100,78 +80,51 @@ public class mainController {
         programSelectorComboBox.setDisable(true);
     }
 
-    @FXML
-    void loadFileButtonListener(ActionEvent event) {
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Open S-Emulator Program File");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("XML Files", "*.xml"));
-        File selectedFile = fileChooser.showOpenDialog(loadButton.getScene().getWindow());
-        if (selectedFile != null) {
-            startFileLoadTask(selectedFile);
+    public void setUsername(String username) {
+        this.currentUsername = username;
+        if (usernameLabel != null) {
+            usernameLabel.setText("User: " + username);
+        }
+        startCreditRefresh();
+    }
+
+    public String getCurrentUsername() {
+        return currentUsername;
+    }
+
+    // Call this method after navigation from dashboard
+    public void initializeWithProgram() {
+        if (!isProgramLoaded) {
+            setupExpansionForNewProgram();
+            isProgramLoaded = true;
         }
     }
 
-    private void startFileLoadTask(File file) {
-        Task<ProgramDetails> loadTask = new Task<>() {
-            @Override
-            protected ProgramDetails call() throws Exception {
-                updateProgress(30, 100);
-                Thread.sleep(500);
-
-                // Upload file via HTTP
-                HttpClientUtil.uploadFile(file);
-
-                updateProgress(70, 100);
-
-                // Get program details
-                ProgramDetails details = HttpClientUtil.getProgramDetails();
-
-                updateProgress(100, 100);
-                Thread.sleep(500);
-                return details;
-            }
-        };
-
-        loadingProgressBar.progressProperty().bind(loadTask.progressProperty());
-        loadingProgressBar.visibleProperty().bind(loadTask.runningProperty());
-        loadButton.disableProperty().bind(loadTask.runningProperty());
-
-        loadTask.setOnSucceeded(e -> {
-            loadedFileLabel.setText("Loaded: " + file.getName());
-            isProgramLoaded = true;
-
-            if (statisticsController != null) {
-                statisticsController.clearHistory();
+    @FXML
+    private void handleBackToDashboard() {
+        try {
+            if (creditRefreshTimer != null) {
+                creditRefreshTimer.cancel();
             }
 
-            // Set up the program selector
-            Task<List<String>> namesTask = new Task<>() {
-                @Override
-                protected List<String> call() throws Exception {
-                    return HttpClientUtil.getProgramNames();
-                }
-            };
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/dashboard/dashboard.fxml"));
+            Parent root = loader.load();
 
-            namesTask.setOnSucceeded(ev -> {
-                programSelectorComboBox.setItems(FXCollections.observableArrayList(namesTask.getValue()));
-                programSelectorComboBox.getSelectionModel().selectFirst();
-                programSelectorComboBox.setDisable(false);
-                setupExpansionForNewProgram();
-            });
+            Object controller = loader.getController();
+            if (controller instanceof fxml.dashboard.DashboardController) {
+                ((fxml.dashboard.DashboardController) controller).setUsername(currentUsername);
+            }
 
-            new Thread(namesTask).start();
-        });
+            Stage stage = (Stage) backToDashboardButton.getScene().getWindow();
+            Scene scene = new Scene(root, 1200, 800);
+            stage.setScene(scene);
+            stage.setTitle("S-Emulator Dashboard - " + currentUsername);
 
-        loadTask.setOnFailed(e -> {
-            loadedFileLabel.setText("Failed to load file.");
-            isProgramLoaded = false;
-            programSelectorComboBox.getItems().clear();
-            programSelectorComboBox.setDisable(true);
-            showAlert(Alert.AlertType.ERROR, "File Load Error",
-                    "Could not load file.", loadTask.getException().getMessage());
-        });
-
-        new Thread(loadTask).start();
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Navigation Error",
+                    "Failed to return to dashboard", e.getMessage());
+        }
     }
 
     private void handleContextChange(String newContext) {
@@ -207,20 +160,7 @@ public class mainController {
     }
 
     public void onProgramRunFinished() {
-        if (!isProgramLoaded || statisticsController == null) return;
-
-        Task<List<RunHistoryDetails>> statsTask = new Task<>() {
-            @Override
-            protected List<RunHistoryDetails> call() throws Exception {
-                return HttpClientUtil.getStatistics();
-            }
-        };
-
-        statsTask.setOnSucceeded(e -> {
-            statisticsController.loadStatistics(statsTask.getValue());
-        });
-
-        new Thread(statsTask).start();
+        refreshCredits();
     }
 
     public void highlightInstruction(int instructionNumber) {
@@ -239,6 +179,7 @@ public class mainController {
         }
     }
 
+
     public void setExpansionControlsDisabled(boolean disabled) {
         expandButton.setDisable(disabled);
         collapseButton.setDisable(disabled);
@@ -250,8 +191,6 @@ public class mainController {
     }
 
     private void setupExpansionForNewProgram() {
-        if (!isProgramLoaded) return;
-
         Task<Integer> maxDegreeTask = new Task<>() {
             @Override
             protected Integer call() throws Exception {
@@ -263,6 +202,11 @@ public class mainController {
             currentDegree = 0;
             maxDegree = maxDegreeTask.getValue();
             updateProgramViewToCurrentDegree();
+        });
+
+        maxDegreeTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Error",
+                    "Failed to get max degree", maxDegreeTask.getException().getMessage());
         });
 
         new Thread(maxDegreeTask).start();
@@ -339,6 +283,33 @@ public class mainController {
 
         highlightComboBox.setItems(FXCollections.observableArrayList(highlightOptions));
         highlightComboBox.setDisable(false);
+    }
+
+    private void startCreditRefresh() {
+        creditRefreshTimer = new Timer(true);
+        creditRefreshTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                refreshCredits();
+            }
+        }, 0, 2000);
+    }
+
+    private void refreshCredits() {
+        new Thread(() -> {
+            try {
+                List<HttpClientUtil.UserInfo> users = HttpClientUtil.getAllUsers();
+                for (HttpClientUtil.UserInfo user : users) {
+                    if (user.username.equals(currentUsername)) {
+                        int credits = user.credits;
+                        Platform.runLater(() -> creditsLabel.setText(String.valueOf(credits)));
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+        }).start();
     }
 
     private void showAlert(Alert.AlertType type, String title, String header, String content) {

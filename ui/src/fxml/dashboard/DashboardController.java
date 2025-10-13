@@ -247,7 +247,6 @@ public class DashboardController {
 
     private void navigateToExecutionScreen(String programName, String type) {
         try {
-            // TODO: Set context and navigate to execution screen (your existing abc3.fxml)
             HttpClientUtil.setContextProgram(programName);
 
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/app/abc3.fxml"));
@@ -255,14 +254,18 @@ public class DashboardController {
 
             Object controller = loader.getController();
             if (controller instanceof fxml.app.mainController) {
-                ((fxml.app.mainController) controller).setUsername(currentUsername);
+                fxml.app.mainController mainCtrl = (fxml.app.mainController) controller;
+                mainCtrl.setUsername(currentUsername);
+                mainCtrl.initializeWithProgram();  // This loads the program
             }
 
             Stage stage = (Stage) loadFileButton.getScene().getWindow();
-            stage.setScene(new Scene(root));
-            stage.setTitle("S-Emulator - Execute " + programName);
+            Scene scene = new Scene(root, 1200, 800);
+            stage.setScene(scene);
+            stage.setTitle("S-Emulator - Execute: " + programName);
 
         } catch (Exception e) {
+            e.printStackTrace();
             showError("Failed to navigate: " + e.getMessage());
         }
     }
