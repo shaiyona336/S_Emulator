@@ -16,6 +16,7 @@ import javafx.stage.Stage;
 import http.HttpClientUtil;
 
 import java.io.File;
+import java.util.List;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -275,24 +276,86 @@ public class DashboardController {
     }
 
     private void loadUsers() {
-        // TODO: Implement - call servlet to get all users
-        ObservableList<UserRow> users = FXCollections.observableArrayList();
-        // users.add(new UserRow(...));
-        Platform.runLater(() -> usersTableView.setItems(users));
+        new Thread(() -> {
+            try {
+                List<HttpClientUtil.UserInfo> users = HttpClientUtil.getAllUsers();
+                ObservableList<UserRow> userRows = FXCollections.observableArrayList();
+                for (HttpClientUtil.UserInfo user : users) {
+                    userRows.add(new UserRow(
+                            user.username,
+                            user.programsUploaded,
+                            user.functionsUploaded,
+                            user.credits,
+                            user.usedCredits,
+                            user.totalRuns
+                    ));
+                }
+                Platform.runLater(() -> usersTableView.setItems(userRows));
+            } catch (Exception e) {
+                Platform.runLater(() -> showStatus("Failed to load users: " + e.getMessage()));
+            }
+        }).start();
     }
 
     private void loadPrograms() {
-        // TODO: Implement - call servlet to get all programs
-        ObservableList<ProgramRow> programs = FXCollections.observableArrayList();
-        // programs.add(new ProgramRow(...));
-        Platform.runLater(() -> programsTableView.setItems(programs));
+        new Thread(() -> {
+            try {
+                List<HttpClientUtil.ProgramInfoDTO> programs = HttpClientUtil.getAllPrograms();
+                ObservableList<ProgramRow> programRows = FXCollections.observableArrayList();
+                for (HttpClientUtil.ProgramInfoDTO prog : programs) {
+                    programRows.add(new ProgramRow(
+                            prog.name,
+                            prog.owner,
+                            prog.instructionCount,
+                            prog.maxDegree,
+                            prog.runCount,
+                            prog.avgCost
+                    ));
+                }
+                Platform.runLater(() -> programsTableView.setItems(programRows));
+            } catch (Exception e) {
+                Platform.runLater(() -> showStatus("Failed to load programs: " + e.getMessage()));
+            }
+        }).start();
     }
 
     private void loadFunctions() {
-        // TODO: Implement - call servlet to get all functions
-        ObservableList<FunctionRow> functions = FXCollections.observableArrayList();
-        // functions.add(new FunctionRow(...));
-        Platform.runLater(() -> functionsTableView.setItems(functions));
+        new Thread(() -> {
+            try {
+                List<HttpClientUtil.FunctionInfoDTO> functions = HttpClientUtil.getAllFunctions();
+                ObservableList<FunctionRow> functionRows = FXCollections.observableArrayList();
+                for (HttpClientUtil.FunctionInfoDTO func : functions) {
+                    functionRows.add(new FunctionRow(
+                            func.name,
+                            func.programName,
+                            func.owner,
+                            func.instructionCount,
+                            func.maxDegree
+                    ));
+                }
+                Platform.runLater(() -> functionsTableView.setItems(functionRows));
+            } catch (Exception e) {
+                Platform.runLater(() -> showStatus("Failed to load functions: " + e.getMessage()));
+            }
+        }).start();
+    }
+
+    private void loadMyCredits() {
+        // For now, just get from users list
+        new Thread(() -> {
+            try {
+                List<HttpClientUtil.UserInfo> users = HttpClientUtil.getAllUsers();
+                for (HttpClientUtil.UserInfo user : users) {
+                    if (user.username.equals(currentUsername)) {
+                        int credits = user.credits;
+                        Platform.runLater(() -> creditsLabel.setText(String.valueOf(credits)));
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                // Ignore
+            }
+        }).start();
     }
 
     private void loadMyHistory() {
@@ -305,10 +368,7 @@ public class DashboardController {
         // TODO: Load selected user's history
     }
 
-    private void loadMyCredits() {
-        // TODO: Get current user credits from server
-        Platform.runLater(() -> creditsLabel.setText("1000")); // Placeholder
-    }
+
 
     private void startAutoRefresh() {
         refreshTimer = new Timer(true);

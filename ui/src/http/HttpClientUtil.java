@@ -311,4 +311,49 @@ public class HttpClientUtil {
     private static class MaxDegreeResponse {
         int maxDegree;
     }
+
+    public static List<UserInfo> getAllUsers() throws IOException {
+        String response = sendGetRequest("/users");
+        Type listType = new TypeToken<List<UserInfo>>(){}.getType();
+        return GSON.fromJson(response, listType);
+    }
+
+    public static List<ProgramInfoDTO> getAllPrograms() throws IOException {
+        String response = sendGetRequest("/programs-list");
+        Type listType = new TypeToken<List<ProgramInfoDTO>>(){}.getType();
+        return GSON.fromJson(response, listType);
+    }
+
+    public static List<FunctionInfoDTO> getAllFunctions() throws IOException {
+        String response = sendGetRequest("/functions-list");
+        Type listType = new TypeToken<List<FunctionInfoDTO>>(){}.getType();
+        return GSON.fromJson(response, listType);
+    }
+
+    // Add these inner classes at the end of HttpClientUtil
+    public static class UserInfo {
+        public String username;
+        public int programsUploaded;
+        public int functionsUploaded;
+        public int credits;
+        public int usedCredits;
+        public int totalRuns;
+    }
+
+    public static class ProgramInfoDTO {
+        public String name;
+        public String owner;
+        public int instructionCount;
+        public int maxDegree;
+        public int runCount;
+        public int avgCost;
+    }
+
+    public static class FunctionInfoDTO {
+        public String name;
+        public String programName;
+        public String owner;
+        public int instructionCount;
+        public int maxDegree;
+    }
 }
