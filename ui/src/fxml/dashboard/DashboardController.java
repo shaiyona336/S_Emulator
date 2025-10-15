@@ -376,12 +376,12 @@ public class DashboardController {
                             prog.owner,
                             prog.instructionCount,
                             prog.maxDegree,
-                            prog.runCount,
-                            prog.avgCost
+                            prog.runCount,      // This will now update
+                            prog.avgCost        // This will now update
                     ));
                 }
                 Platform.runLater(() -> {
-                    isRefreshingPrograms = true;  // Set flag before updating
+                    isRefreshingPrograms = true;
                     programsTableView.setItems(programRows);
                     // Restore selection
                     if (selectedProgramName != null) {
@@ -392,7 +392,7 @@ public class DashboardController {
                             }
                         }
                     }
-                    isRefreshingPrograms = false;  // Clear flag after updating
+                    isRefreshingPrograms = false;
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> showStatus("Failed to load programs: " + e.getMessage()));
@@ -466,7 +466,7 @@ public class DashboardController {
         refreshTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                refreshData();
+                refreshData();  // This calls loadPrograms() which updates the table
             }
         }, 2000, 2000); // Refresh every 2 seconds
     }

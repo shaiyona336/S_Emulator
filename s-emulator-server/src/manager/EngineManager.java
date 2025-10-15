@@ -245,7 +245,6 @@ public class EngineManager {
         return null;
     }
 
-    // Inner classes
     public static class ProgramInfo {
         private final String name;
         private final String owner;
@@ -264,7 +263,7 @@ public class EngineManager {
             this.maxDegree = maxDegree;
         }
 
-        public void recordRun(int cost) {
+        public synchronized void recordRun(int cost) {  // Make it synchronized
             runCount++;
             totalCost += cost;
         }

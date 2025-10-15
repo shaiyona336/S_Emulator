@@ -108,6 +108,17 @@ public class RunProgramServlet extends HttpServlet {
             int cycleCost = executionDetails.cycles();
             user.deductCredits(cycleCost);
 
+            // Increment user's run count
+            user.incrementRun();
+
+            // Record run in program statistics - NEW
+            int totalCost = arch.getCost() + cycleCost;
+            String programName = details.name();
+            EngineManager.ProgramInfo programInfo = engineManager.getProgramInfo(programName);
+            if (programInfo != null) {
+                programInfo.recordRun(totalCost);
+            }
+
             response.setStatus(HttpServletResponse.SC_OK);
             response.getWriter().write(gson.toJson(executionDetails));
 
