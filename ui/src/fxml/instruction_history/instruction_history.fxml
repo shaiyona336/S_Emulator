@@ -12,5 +12,6 @@
         <TableColumn fx:id="labelColumn" prefWidth="68.0" text="Label" />
         <TableColumn fx:id="instructionColumn" text="Instruction" />
         <TableColumn fx:id="cyclesColumn" prefWidth="54.39997863769531" text="Cycles" />
+        <TableColumn fx:id="architectureColumn" prefWidth="100.0" text="Architecture" />  <!-- NEW -->
     </columns>
 </TableView>

@@ -23,6 +23,7 @@ public class instruction_historyController {
     @FXML private TableColumn<InstructionRow, String> labelColumn;
     @FXML private TableColumn<InstructionRow, String> instructionColumn;
     @FXML private TableColumn<InstructionRow, Integer> cyclesColumn;
+    @FXML private TableColumn<InstructionRow, String> architectureColumn;  // ADD THIS LINE
 
     @FXML
     public void initialize() {
@@ -32,6 +33,7 @@ public class instruction_historyController {
         labelColumn.setCellValueFactory(new PropertyValueFactory<>("label"));
         instructionColumn.setCellValueFactory(new PropertyValueFactory<>("instructionText"));
         cyclesColumn.setCellValueFactory(new PropertyValueFactory<>("cycles"));
+        architectureColumn.setCellValueFactory(new PropertyValueFactory<>("architecture"));  // ADD THIS LINE
 
         //initially the table should be empty
         historyTableView.setPlaceholder(new Label("Select an instruction to view its expansion history"));
@@ -72,7 +74,8 @@ public class instruction_historyController {
                     String.valueOf(inst.getInstructionTypeChar()),
                     inst.getLabel().getStringLabel(),
                     commandText,
-                    inst.getCyclesNumber()
+                    inst.getCyclesNumber(),
+                    inst.getRequiredArchitecture().name()  // ADD ARCHITECTURE
             );
             historyRows.add(row);
         }

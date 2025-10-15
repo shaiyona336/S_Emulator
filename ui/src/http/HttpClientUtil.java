@@ -2,10 +2,7 @@ package http;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import dtos.DebugStepDetails;
-import dtos.ExecutionDetails;
-import dtos.ProgramDetails;
-import dtos.RunHistoryDetails;
+import dtos.*;
 import utils.GsonProvider;
 
 import java.io.*;
@@ -369,5 +366,49 @@ public class HttpClientUtil {
         public String owner;
         public int instructionCount;
         public int maxDegree;
+    }
+
+
+
+    public static ArchitectureStats getArchitectureStats(String architecture) throws IOException {
+        Map<String, String> params = new HashMap<>();
+        params.put("architecture", architecture);
+
+        String response = sendGetRequestWithParams("/architecture-stats", params);
+        return GSON.fromJson(response, ArchitectureStats.class);
+    }
+
+    public static ExecutionDetails runProgramWithArchitecture(int degree, Long[] inputs, String architecture) throws IOException {
+        ExecutionRequest request = new ExecutionRequest(degree, inputs, architecture);
+        String response = sendPostJsonRequest("/run-program", request);
+        return GSON.fromJson(response, ExecutionDetails.class);
+    }
+
+    private static String sendGetRequestWithParams(String endpoint, Map<String, String> params) throws IOException {
+        StringBuilder urlWithParams = new StringBuilder(BASE_URL + endpoint);
+        if (params != null && !params.isEmpty()) {
+            urlWithParams.append("?");
+            boolean first = true;
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                if (!first) urlWithParams.append("&");
+                urlWithParams.append(URLEncoder.encode(entry.getKey(), "UTF-8"));
+                urlWithParams.append("=");
+                urlWithParams.append(URLEncoder.encode(entry.getValue(), "UTF-8"));
+                first = false;
+            }
+        }
+
+        URL url = new URL(urlWithParams.toString());
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestMethod("GET");
+        addCookiesToConnection(connection);
+
+        int responseCode = connection.getResponseCode();
+        if (responseCode != HttpURLConnection.HTTP_OK) {
+            String error = readErrorStream(connection);
+            throw new IOException("Request failed: " + error);
+        }
+
+        return readResponse(connection);
     }
 }

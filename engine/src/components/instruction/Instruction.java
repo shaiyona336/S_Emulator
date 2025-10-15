@@ -1,5 +1,6 @@
 package components.instruction;
 
+import components.architecture.Architecture;
 import components.executor.Context;
 import components.executor.ProgramExecutor;
 import components.label.FreeLabelGenerator;
@@ -19,7 +20,6 @@ public interface Instruction extends Serializable {
     int getDegree();
     Label getLabel();
     List<Label> getAllInvolvedLabels();
-    // List<Instruction> getInstructions();
     Variable getVariable();
     List<Variable> getAllInvolvedVariables();
     String getStringInstruction();
@@ -28,16 +28,9 @@ public interface Instruction extends Serializable {
     boolean hasAncientInstruction();
     Instruction getAncientInstruction();
     void setAncientInstruction(Instruction ancientInstruction);
-    public char getInstructionTypeChar();
-
-
+    char getInstructionTypeChar();
     Instruction rename(Map<Variable, Variable> varMap, Map<Label, Label> labelMap);
-
-
     int getDegree(Map<String, Program> functions);
 
-
-
-
-
+    Architecture getRequiredArchitecture();
 }

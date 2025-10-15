@@ -1,5 +1,6 @@
 package components.instruction;
 
+import components.architecture.Architecture;  // ADD THIS IMPORT
 import components.label.FixedLabel;
 import components.label.Label;
 import components.variable.Variable;
@@ -24,7 +25,6 @@ public abstract class AbstractInstruction implements Instruction {
         this.label = label;
     }
 
-
     public char getInstructionTypeChar() {
         return instructionSemantic.getInstructionTypeChar();
     }
@@ -33,8 +33,6 @@ public abstract class AbstractInstruction implements Instruction {
     public String getName() {
         return instructionSemantic.getName();
     }
-    
-
 
     @Override
     public int getCyclesNumber() {
@@ -95,9 +93,11 @@ public abstract class AbstractInstruction implements Instruction {
     public Instruction rename(Map<Variable, Variable> varMap, Map<Label, Label> labelMap) {
         Variable newVar = varMap.getOrDefault(this.getVariable(), this.getVariable());
         Label newLabel = labelMap.getOrDefault(this.getLabel(), this.getLabel());
-
-        //each implementation class has a rename
-
         throw new UnsupportedOperationException("Rename method not implemented for " + this.getClass().getSimpleName());
+    }
+
+    @Override
+    public Architecture getRequiredArchitecture() {
+        return Architecture.getMinimumRequired(instructionSemantic);
     }
 }

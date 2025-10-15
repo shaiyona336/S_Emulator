@@ -2,10 +2,7 @@ package fxml.debugger;
 
 import components.executor.Context;
 import components.variable.Variable;
-import dtos.ExecutionDetails;
-import dtos.ProgramDetails;
-import dtos.DebugStepDetails;
-import dtos.RunHistoryDetails;
+import dtos.*;
 import fxml.VariableOutputRow;
 import fxml.app.mainController;
 import http.HttpClientUtil;
@@ -41,6 +38,10 @@ public class DebuggerPanelController {
     @FXML private TableColumn<VariableOutputRow, String> variableValueColumn;
     @FXML private Label cyclesLabel;
 
+    @FXML private ComboBox<String> architectureComboBox;
+    @FXML private Label architectureCostLabel;
+    @FXML private Label requiredCreditsLabel;
+
     @FXML
     public void initialize() {
         variableNameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -57,7 +58,75 @@ public class DebuggerPanelController {
             }
         });
         updateComponentStates();
+
+        architectureComboBox.setItems(FXCollections.observableArrayList(
+                "GENERATION_I",
+                "GENERATION_II",
+                "GENERATION_III",
+                "GENERATION_IV"
+        ));
+        architectureComboBox.setValue("GENERATION_I");
+
+        // Add listener to update cost when architecture changes
+        architectureComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                updateArchitectureCost(newVal);
+                updateArchitectureStats(newVal);
+            }
+        });
     }
+
+    private void updateArchitectureStats(String architecture) {
+        if (loadedProgramDetails == null) return;
+
+        Task<ArchitectureStats> statsTask = new Task<>() {
+            @Override
+            protected ArchitectureStats call() throws Exception {
+                return HttpClientUtil.getArchitectureStats(architecture);
+            }
+        };
+
+        statsTask.setOnSucceeded(e -> {
+            ArchitectureStats stats = statsTask.getValue();
+            displayArchitectureStats(stats);
+        });
+
+        new Thread(statsTask).start();
+    }
+
+
+
+    private void displayArchitectureStats(ArchitectureStats stats) {
+        StringBuilder sb = new StringBuilder("Instructions by Architecture:\n");
+        stats.instructionCountByArchitecture().forEach((arch, count) -> {
+            sb.append(arch).append(": ").append(count).append("\n");
+        });
+        sb.append("\nMinimum Required: ").append(stats.minimumRequiredArchitecture());
+
+        if (!stats.canRunOnArchitecture()) {
+            sb.append("\n⚠️ Selected architecture cannot run this program!");
+        }
+
+        // Display in a label or text area
+        // architectureStatsLabel.setText(sb.toString());
+    }
+
+
+
+
+    private void updateArchitectureCost(String architecture) {
+        int cost = switch (architecture) {
+            case "GENERATION_I" -> 5;
+            case "GENERATION_II" -> 100;
+            case "GENERATION_III" -> 500;
+            case "GENERATION_IV" -> 1000;
+            default -> 0;
+        };
+        architectureCostLabel.setText("Architecture Cost: " + cost + " credits");
+    }
+
+
+
 
     public void setMainController(mainController mainController) {
         this.mainController = mainController;
@@ -83,10 +152,21 @@ public class DebuggerPanelController {
 
     @FXML
     private void handleStartNormalRun() {
+        String selectedArch = architectureComboBox.getValue();
+        if (selectedArch == null) {
+            showAlert(Alert.AlertType.WARNING, "No Architecture",
+                    "Please select an architecture", null);
+            return;
+        }
+
         Task<ExecutionDetails> runTask = new Task<>() {
             @Override
             protected ExecutionDetails call() throws Exception {
-                return HttpClientUtil.runProgram(currentProgramDegree, buildInputsArray());
+                return HttpClientUtil.runProgramWithArchitecture(
+                        currentProgramDegree,
+                        buildInputsArray(),
+                        selectedArch
+                );
             }
         };
 
@@ -97,8 +177,14 @@ public class DebuggerPanelController {
         });
 
         runTask.setOnFailed(e -> {
-            showAlert(Alert.AlertType.ERROR, "Execution Error",
-                    "Program encountered an error.", runTask.getException().getMessage());
+            String errorMsg = runTask.getException().getMessage();
+            if (errorMsg.contains("Insufficient credits")) {
+                showAlert(Alert.AlertType.ERROR, "Insufficient Credits",
+                        "Not enough credits to run", errorMsg);
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Execution Error",
+                        "Program encountered an error.", errorMsg);
+            }
         });
 
         new Thread(runTask).start();

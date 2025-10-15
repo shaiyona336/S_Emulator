@@ -10,6 +10,7 @@
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
+<?import javafx.scene.control.ComboBox?>
 <TitledPane fx:id="debuggerPanel" text="Debugger/Execution" collapsible="false" minWidth="0.0"
             xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="fxml.debugger.DebuggerPanelController">
@@ -26,6 +27,16 @@
             <Separator/>
             <Label text="Inputs:"/>
             <VBox fx:id="inputsContainer" spacing="5.0"/>
+
+
+            <Separator/>
+            <Label text="Architecture:"/>
+            <ComboBox fx:id="architectureComboBox" maxWidth="Infinity"/>
+            <Label fx:id="architectureCostLabel" text="Architecture Cost: 0 credits"/>
+            <Label fx:id="requiredCreditsLabel" text="Estimated Total: 0 credits"/>
+            <Separator/>
+
+
             <Button fx:id="clearInputsButton" text="Clear Inputs" onAction="#handleClearInputs"/>
             <Separator/>
             <Label text="Execution Results:"/>
