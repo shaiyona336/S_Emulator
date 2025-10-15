@@ -1,32 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.Insets?>
-<?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TableColumn?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
 
-<VBox minWidth="0.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="fxml.instruction_table.instruction_tableController">
-    <children>
-        <TableView fx:id="instructionsTableView" VBox.vgrow="ALWAYS">
-            <columns>
-                <TableColumn fx:id="numberColumn" prefWidth="50.0" resizable="false" text="#" />
-                <TableColumn fx:id="typeColumn" prefWidth="60.0" resizable="false" text="B/S" />
-                <TableColumn fx:id="labelColumn" prefWidth="80.0" text="Label" />
-
-                <TableColumn fx:id="instructionColumn" prefWidth="300.0" text="Instruction" />
-
-                <TableColumn fx:id="cyclesColumn" prefWidth="60.0" resizable="false" text="Cycles" />
-            </columns>
-
-            <columnResizePolicy>
-                <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
-            </columnResizePolicy>
-        </TableView>
-        <Label fx:id="summaryLabel" alignment="CENTER" maxWidth="1.7976931348623157E308" text="Summary line">
-            <padding>
-                <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-            </padding>
-        </Label>
-    </children>
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="fxml.instruction_table.instruction_tableController">
+    <TableView fx:id="instructionTableView" VBox.vgrow="ALWAYS">
+        <columns>
+            <TableColumn fx:id="indexColumn" text="#" prefWidth="40"/>
+            <TableColumn fx:id="instructionNumberColumn" text="B\S" prefWidth="50"/>
+            <TableColumn fx:id="cyclesColumn" text="Cycles" prefWidth="60"/>
+            <TableColumn fx:id="nameColumn" text="Instruction" prefWidth="150"/>
+            <TableColumn fx:id="operand1Column" text="Operand 1" prefWidth="100"/>
+            <TableColumn fx:id="operand2Column" text="Operand 2" prefWidth="100"/>
+            <TableColumn fx:id="architectureColumn" text="Arch" prefWidth="50"/>
+        </columns>
+    </TableView>
 </VBox>

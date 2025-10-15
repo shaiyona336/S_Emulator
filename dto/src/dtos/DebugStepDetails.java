@@ -1,10 +1,15 @@
 package dtos;
 
-import components.executor.Context;
+import java.util.List;
 
 public record DebugStepDetails(
-        Context context,             // The state of all variables after the step
-        int nextInstructionNumber,   // The 1-based number of the *next* instruction to be executed
-        boolean isFinished           // A flag indicating if the program has completed
-) {}
-
+        List<VariableDetails> variables,
+        int currentInstructionNumber,
+        boolean isFinished,
+        int cyclesConsumed,
+        long yValue
+) {
+    public int totalCycles() {
+        return cyclesConsumed;
+    }
+}

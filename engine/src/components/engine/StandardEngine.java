@@ -1,15 +1,13 @@
 package components.engine;
 
+import components.executor.Context;
 import components.executor.ProgramExecutor;
 import components.instruction.Instruction;
 import components.instruction.implementations.synthetic.QuoteInstruction;
 import components.jaxb.generated.*;
 import components.program.JaxbConversion;
 import components.program.Program;
-import dtos.DebugStepDetails;
-import dtos.ExecutionDetails;
-import dtos.ProgramDetails;
-import dtos.RunHistoryDetails;
+import dtos.*;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;
 
@@ -17,6 +15,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.util.*;
+import components.architecture.Architecture;
+import components.architecture.InstructionGeneration;
 
 public class StandardEngine implements Engine {
     final static String JAXB_XML_PACKAGE_NAME = "components.jaxb.generated";
@@ -37,7 +37,6 @@ public class StandardEngine implements Engine {
     private Program debugProgram = null;
     private int debugExpansionDegree = 0;
 
-
     @Override
     public void loadProgramFromFile(File file) {
         SProgram sProgram = parseXmlFile(file);
@@ -52,13 +51,11 @@ public class StandardEngine implements Engine {
                 for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
                     jumpLabelsAreValid(sFunc.getSInstructions());
                     Program functionAsProgram = JaxbConversion.SFunctionToProgram(sFunc);
-                    // --- MODIFIED: Store the function program AND its user-string ---
                     definedFunctions.put(sFunc.getName(), new FunctionData(functionAsProgram, sFunc.getUserString()));
                 }
             }
             program = JaxbConversion.SProgramToProgram(sProgram);
 
-            // --- NEW: Set the initial context to the main program ---
             this.contextProgram = this.program;
 
             validateFunctionCalls(program, definedFunctions);
@@ -128,12 +125,37 @@ public class StandardEngine implements Engine {
     @Override
     public ProgramDetails getProgramDetails() {
         if (!programLoaded || contextProgram == null) return null;
-        return new ProgramDetails(
+
+        List<InstructionDetails> instructionDetailsList = convertInstructions(contextProgram);
+
+        List<LabelDetails> labelDetailsList = new ArrayList<>();
+        List<components.label.Label> labels = contextProgram.getLabels(getProgramMap());
+        for (components.label.Label label : labels) {
+            labelDetailsList.add(new LabelDetails(label.getStringLabel()));
+        }
+
+        // Input and work variables are just identifiers - they don't have values until execution
+        List<VariableDetails> inputVarDetailsList = new ArrayList<>();
+        List<components.variable.Variable> inputVars = contextProgram.getInputVariables(getProgramMap());
+        for (components.variable.Variable var : inputVars) {
+            inputVarDetailsList.add(new VariableDetails(var.getStringVariable(), 0L));
+        }
+
+        List<VariableDetails> workVarDetailsList = new ArrayList<>();
+        List<components.variable.Variable> workVars = contextProgram.getWorkVariables(getProgramMap());
+        for (components.variable.Variable var : workVars) {
+            workVarDetailsList.add(new VariableDetails(var.getStringVariable(), 0L));
+        }
+
+        List<BreakpointDetails> breakpointDetailsList = new ArrayList<>();
+
+        return ProgramDetails.createWithArchitectureCounts(
                 contextProgram.getName(),
-                contextProgram.getInputVariables(getProgramMap()),
-                contextProgram.getWorkVariables(getProgramMap()),
-                contextProgram.getLabels(getProgramMap()),
-                contextProgram.getInstructions()
+                instructionDetailsList,
+                labelDetailsList,
+                inputVarDetailsList,
+                workVarDetailsList,
+                breakpointDetailsList
         );
     }
 
@@ -143,13 +165,67 @@ public class StandardEngine implements Engine {
         for (int i = 0; i < expansionDegree; i++) {
             currentProgram = currentProgram.expand(getProgramMap());
         }
-        return new ProgramDetails(
+
+        List<InstructionDetails> instructionDetailsList = convertInstructions(currentProgram);
+
+        List<LabelDetails> labelDetailsList = new ArrayList<>();
+        List<components.label.Label> labels = currentProgram.getLabels(getProgramMap());
+        for (components.label.Label label : labels) {
+            labelDetailsList.add(new LabelDetails(label.getStringLabel()));
+        }
+
+        List<VariableDetails> inputVarDetailsList = new ArrayList<>();
+        List<components.variable.Variable> inputVars = currentProgram.getInputVariables(getProgramMap());
+        for (components.variable.Variable var : inputVars) {
+            inputVarDetailsList.add(new VariableDetails(var.getStringVariable(), 0L));
+        }
+
+        List<VariableDetails> workVarDetailsList = new ArrayList<>();
+        List<components.variable.Variable> workVars = currentProgram.getWorkVariables(getProgramMap());
+        for (components.variable.Variable var : workVars) {
+            workVarDetailsList.add(new VariableDetails(var.getStringVariable(), 0L));
+        }
+
+        List<BreakpointDetails> breakpointDetailsList = new ArrayList<>();
+
+        return ProgramDetails.createWithArchitectureCounts(
                 currentProgram.getName(),
-                currentProgram.getInputVariables(getProgramMap()),
-                currentProgram.getWorkVariables(getProgramMap()),
-                currentProgram.getLabels(getProgramMap()),
-                currentProgram.getInstructions()
+                instructionDetailsList,
+                labelDetailsList,
+                inputVarDetailsList,
+                workVarDetailsList,
+                breakpointDetailsList
         );
+    }
+
+    private List<InstructionDetails> convertInstructions(Program prog) {
+        List<InstructionDetails> instructionDetailsList = new ArrayList<>();
+        int index = 0;
+        int instructionNumber = 1;
+        List<Instruction> instructions = prog.getInstructions();
+        for (Instruction instruction : instructions) {
+            String operand1 = "";
+            String operand2 = "";
+
+            // Parse operands from string representation
+            try {
+                String instStr = instruction.getStringInstruction();
+                String[] parts = instStr.split(" ");
+                if (parts.length > 1) operand1 = parts[1];
+                if (parts.length > 2) operand2 = parts[2];
+            } catch (Exception e) {
+                // Leave empty if parsing fails
+            }
+
+            instructionDetailsList.add(InstructionDetails.fromInstruction(
+                    index++,
+                    instructionNumber++,
+                    instruction.getName(),
+                    operand1,
+                    operand2
+            ));
+        }
+        return instructionDetailsList;
     }
 
     @Override
@@ -170,10 +246,77 @@ public class StandardEngine implements Engine {
 
         runHistoryDetails.add(new RunHistoryDetails(++runNumber, expansionDegree, List.of(input), y, programExecutor.getCyclesNumber()));
 
-        return new ExecutionDetails(
-                new ProgramDetails(programToRun.getName(), programToRun.getInputVariables(getProgramMap()), programToRun.getWorkVariables(getProgramMap()), programToRun.getLabels(getProgramMap()), programToRun.getInstructions()),
+        // Convert Context to VariableDetails
+        List<VariableDetails> variableDetailsList = convertContextToVariableDetails(
                 programExecutor.getVariablesContext(),
-                programExecutor.getCyclesNumber()
+                programToRun
+        );
+
+        return new ExecutionDetails(
+                getProgramDetailsForProgram(programToRun),
+                variableDetailsList,
+                programExecutor.getCyclesNumber(),
+                y
+        );
+    }
+
+    private List<VariableDetails> convertContextToVariableDetails(Context context, Program program) {
+        List<VariableDetails> variableDetailsList = new ArrayList<>();
+
+        if (context == null) {
+            return variableDetailsList;
+        }
+
+        try {
+            Map<components.variable.Variable, Long> variables = context.getVariables();
+            if (variables != null) {
+                for (Map.Entry<components.variable.Variable, Long> entry : variables.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        variableDetailsList.add(new VariableDetails(
+                                entry.getKey().getStringVariable(),
+                                entry.getValue()
+                        ));
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Error converting context to variable details: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        return variableDetailsList;
+    }
+
+    private ProgramDetails getProgramDetailsForProgram(Program prog) {
+        List<InstructionDetails> instructionDetailsList = convertInstructions(prog);
+
+        List<LabelDetails> labelDetailsList = new ArrayList<>();
+        List<components.label.Label> labels = prog.getLabels(getProgramMap());
+        for (components.label.Label label : labels) {
+            labelDetailsList.add(new LabelDetails(label.getStringLabel()));
+        }
+
+        List<VariableDetails> inputVarDetailsList = new ArrayList<>();
+        List<components.variable.Variable> inputVars = prog.getInputVariables(getProgramMap());
+        for (components.variable.Variable var : inputVars) {
+            inputVarDetailsList.add(new VariableDetails(var.getStringVariable(), 0L));
+        }
+
+        List<VariableDetails> workVarDetailsList = new ArrayList<>();
+        List<components.variable.Variable> workVars = prog.getWorkVariables(getProgramMap());
+        for (components.variable.Variable var : workVars) {
+            workVarDetailsList.add(new VariableDetails(var.getStringVariable(), 0L));
+        }
+
+        List<BreakpointDetails> breakpointDetailsList = new ArrayList<>();
+
+        return ProgramDetails.createWithArchitectureCounts(
+                prog.getName(),
+                instructionDetailsList,
+                labelDetailsList,
+                inputVarDetailsList,
+                workVarDetailsList,
+                breakpointDetailsList
         );
     }
 
@@ -202,10 +345,17 @@ public class StandardEngine implements Engine {
         this.debugExecutor.initializeDebugSession(inputs);
         isInDebugMode = true;
 
-        return new DebugStepDetails(
+        List<VariableDetails> variableDetailsList = convertContextToVariableDetails(
                 this.debugExecutor.getVariablesContext(),
+                this.debugProgram
+        );
+
+        return new DebugStepDetails(
+                variableDetailsList,
                 1,
-                this.debugExecutor.isFinished()
+                this.debugExecutor.isFinished(),
+                this.debugExecutor.getCyclesNumber(),
+                0L
         );
     }
 
@@ -214,11 +364,32 @@ public class StandardEngine implements Engine {
         if (!isInDebugMode || this.debugExecutor == null) {
             throw new IllegalStateException("Not in a debug session. Cannot step over.");
         }
+
+        int cyclesBefore = this.debugExecutor.getCyclesNumber();
         this.debugExecutor.stepOver();
-        return new DebugStepDetails(
+        int cyclesAfter = this.debugExecutor.getCyclesNumber();
+        int cyclesConsumed = cyclesAfter - cyclesBefore;
+
+        List<VariableDetails> variableDetailsList = convertContextToVariableDetails(
                 this.debugExecutor.getVariablesContext(),
+                this.debugProgram
+        );
+
+        // Get Y variable value
+        long yValue = 0;
+        for (VariableDetails var : variableDetailsList) {
+            if (var.getStringVariable().equals("Y")) {
+                yValue = var.getValue();
+                break;
+            }
+        }
+
+        return new DebugStepDetails(
+                variableDetailsList,
                 this.debugExecutor.getNextInstructionNumber(),
-                this.debugExecutor.isFinished()
+                this.debugExecutor.isFinished(),
+                cyclesConsumed,
+                yValue
         );
     }
 
@@ -230,10 +401,16 @@ public class StandardEngine implements Engine {
         Long y = this.debugExecutor.resume();
         runHistoryDetails.add(new RunHistoryDetails(++runNumber, this.debugExpansionDegree, List.of(this.debugExecutor.getInitialInputs()), y, this.debugExecutor.getCyclesNumber()));
 
-        ExecutionDetails finalDetails = new ExecutionDetails(
-                new ProgramDetails(this.debugProgram.getName(), this.debugProgram.getInputVariables(getProgramMap()), this.debugProgram.getWorkVariables(getProgramMap()), this.debugProgram.getLabels(getProgramMap()), this.debugProgram.getInstructions()),
+        List<VariableDetails> variableDetailsList = convertContextToVariableDetails(
                 this.debugExecutor.getVariablesContext(),
-                this.debugExecutor.getCyclesNumber()
+                this.debugProgram
+        );
+
+        ExecutionDetails finalDetails = new ExecutionDetails(
+                getProgramDetailsForProgram(this.debugProgram),
+                variableDetailsList,
+                this.debugExecutor.getCyclesNumber(),
+                y
         );
         stop();
         return finalDetails;
@@ -253,7 +430,6 @@ public class StandardEngine implements Engine {
         }
     }
 
-    // --- NEW: Gets the list of names for the ComboBox ---
     public List<String> getDisplayableProgramNames() {
         if (!programLoaded) return Collections.emptyList();
         List<String> names = new ArrayList<>();
@@ -281,12 +457,47 @@ public class StandardEngine implements Engine {
         }
     }
 
-    //to convert the new FunctionData map to the old Program map for legacy method calls
     private Map<String, Program> getProgramMap() {
         Map<String, Program> programMap = new HashMap<>();
         for (Map.Entry<String, FunctionData> entry : definedFunctions.entrySet()) {
             programMap.put(entry.getKey(), entry.getValue().program());
         }
         return programMap;
+    }
+
+    @Override
+    public boolean validateArchitecture(Architecture architecture) {
+        if (contextProgram == null) return false;
+
+        for (components.instruction.Instruction instruction : contextProgram.getInstructions()) {
+            if (!architecture.supportsInstruction(instruction.getName())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public String getArchitectureValidationMessage(Architecture architecture) {
+        if (contextProgram == null) return "No program loaded";
+
+        StringBuilder unsupported = new StringBuilder();
+        for (components.instruction.Instruction instruction : contextProgram.getInstructions()) {
+            if (!architecture.supportsInstruction(instruction.getName())) {
+                if (unsupported.length() > 0) unsupported.append(", ");
+                unsupported.append(instruction.getName());
+            }
+        }
+
+        if (unsupported.length() > 0) {
+            return "Architecture " + architecture.getDisplayName() +
+                    " does not support: " + unsupported.toString();
+        }
+        return "All instructions supported";
+    }
+
+    @Override
+    public String getContextProgramName() {
+        return contextProgram != null ? contextProgram.getName() : null;
     }
 }

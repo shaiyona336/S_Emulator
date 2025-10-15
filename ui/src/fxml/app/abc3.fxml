@@ -4,6 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
+<?import java.lang.String?>
 <BorderPane fx:controller="fxml.app.mainController"
             stylesheets="@/css/styles.css"
             xmlns="http://javafx.com/javafx/21"
@@ -42,10 +43,36 @@
             </HBox>
 
             <!-- Row 2: Instructions and Debugger -->
-            <SplitPane dividerPositions="0.6" prefHeight="200.0" prefWidth="200.0" GridPane.rowIndex="1">
-                <fx:include fx:id="instructionsTable" source="../instruction_table/instruction_table.fxml" />
+            <VBox spacing="5" style="-fx-background-color: #f0f0f0; -fx-padding: 10;">
+                <Label text="Debugger\Execution" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+
+                <Label text="Commands:" style="-fx-font-size: 11px; -fx-font-weight: bold;"/>
+                <Label text="Start Execution" style="-fx-font-size: 10px;"/>
+                <Label text="Start Regular, Start Debug" style="-fx-font-size: 9px;"/>
+                <Label text="Stop, Resume" style="-fx-font-size: 9px;"/>
+                <Label text="step forward, (Step backward)" style="-fx-font-size: 9px;"/>
+
+                <Separator/>
+
+                <Label text="Architecture Selection:" style="-fx-font-size: 11px; -fx-font-weight: bold;"/>
+                <ComboBox fx:id="architectureComboBox" prefWidth="200">
+                    <items>
+                        <javafx.collections.FXCollections fx:factory="observableArrayList">
+                            <String fx:value="Generation I"/>
+                            <String fx:value="Generation II"/>
+                            <String fx:value="Generation III"/>
+                            <String fx:value="Generation IV"/>
+                        </javafx.collections.FXCollections>
+                    </items>
+                </ComboBox>
+                <Label fx:id="architectureCostLabel" text="Cost: 0 credits" style="-fx-font-size: 10px;"/>
+                <Label fx:id="architectureValidationLabel" text="" wrapText="true"
+                       style="-fx-font-size: 9px; -fx-text-fill: red;"/>
+
+                <Separator/>
+
                 <fx:include fx:id="debugger" source="../debugger/DebuggerPanel.fxml" />
-            </SplitPane>
+            </VBox>
 
             <!-- Row 3: History and Back Button -->
             <SplitPane dividerPositions="0.75" prefHeight="160.0" prefWidth="200.0" GridPane.rowIndex="2">

@@ -3,9 +3,7 @@ package interactive;
 import components.instruction.Instruction;
 import components.label.Label;
 import components.variable.Variable;
-import dtos.ExecutionDetails;
-import dtos.ProgramDetails;
-import dtos.RunHistoryDetails;
+import dtos.*;
 
 import java.io.File;
 import java.util.List;
@@ -103,31 +101,30 @@ public class ConsoleManager {
 
     public static void showProgram(ProgramDetails programDetails) {
         System.out.println("===============================================");
-        System.out.println("Program name: " + programDetails.name());
+        System.out.println("Program name: " + programDetails.programName());
 
         System.out.print("Variables:");
-        for (Variable variable : programDetails.inputVariables())
-        {
+        for (VariableDetails variable : programDetails.inputVariables()) {
             System.out.print(" " + variable.getStringVariable());
         }
         System.out.println();
 
         System.out.print("Labels:");
-        for (Label label : programDetails.labels())
-        {
+        for (LabelDetails label : programDetails.labels()) {
             System.out.print(" " + label.getStringLabel());
         }
         System.out.println();
 
         System.out.println("Instructions:");
-        for (Instruction instruction : programDetails.instructions()) {
-            StringBuilder instructionLine = new StringBuilder(instruction.getStringInstruction());
-            Instruction currentInstruction = instruction;
-
-            while(currentInstruction.hasAncientInstruction()) {
-                currentInstruction = currentInstruction.getAncientInstruction();
-                instructionLine.append(" >>> ").append(currentInstruction.getStringInstruction());
-            }
+        for (InstructionDetails instruction : programDetails.instructions()) {
+            // InstructionDetails doesn't track expansion history
+            // Just show the instruction as-is
+            String instructionLine = String.format("%d: %s %s %s",
+                    instruction.instructionNumber(),
+                    instruction.name(),
+                    instruction.operand1(),
+                    instruction.operand2()
+            ).trim();
 
             System.out.println(instructionLine);
         }
@@ -178,58 +175,52 @@ public class ConsoleManager {
         return degree;
     }
 
-    public static Long[] getProgramInputs(List<Variable> inputVariables) {
-        System.out.print("Input variables:");
-        for (Variable variable : inputVariables)
-        {
-            System.out.print(" " + variable.getStringVariable());
+    public static Long[] getProgramInputs(List<VariableDetails> inputVariables) {
+        Scanner scanner = new Scanner(System.in);
+        Long[] inputs = new Long[inputVariables.size()];
+
+        int i = 0;
+        for (VariableDetails var : inputVariables) {
+            System.out.print("Enter value for " + var.getStringVariable() + ": ");
+            inputs[i++] = scanner.nextLong();
         }
 
-        System.out.println();
-
-        Long[] longInputs;
-        boolean validInput;
-        do {
-            System.out.print("Enter your input: ");
-            validInput = true;
-            String input = scanner.nextLine();
-            if (input.isEmpty()) {
-                return new Long[0];
-            }
-
-            String[] inputs = input.split(",");
-            longInputs = new Long[inputs.length];
-
-            for (int i = 0; i < inputs.length; i++) {
-                try {
-                    longInputs[i] = Long.parseLong(inputs[i]);
-                } catch (NumberFormatException e) {
-                    System.out.println("Invalid inputs, enter numbers seperated by a comma.");
-                    validInput = false;
-                    break;
-                }
-            }
-        } while (!validInput);
-        return longInputs;
+        return inputs;
     }
 
     public static void showExecutionDetails(ExecutionDetails executionDetails) {
         showProgram(executionDetails.programDetails());
         System.out.print("Execution result: ");
-        long yValue = executionDetails.variables().getVariableValue(Variable.OUTPUT);
-        System.out.print(Variable.OUTPUT.getStringVariable() + " = " + yValue);
 
-        for (Variable xVariable : executionDetails.programDetails().inputVariables()) {
-            long xValue = executionDetails.variables().getVariableValue(xVariable);
+        // Find Y value from the variables list
+        long yValue = executionDetails.yValue(); // ExecutionDetails has yValue() method
+        System.out.print("Y = " + yValue);
+
+        // Show input variables with their values
+        for (VariableDetails xVariable : executionDetails.programDetails().inputVariables()) {
+            // Find the value from execution results
+            long xValue = findVariableValue(executionDetails.variables(), xVariable.getStringVariable());
             System.out.print(", " + xVariable.getStringVariable() + " = " + xValue);
         }
 
-        for (Variable zVariable : executionDetails.programDetails().workVariables()) {
-            long zValue = executionDetails.variables().getVariableValue(zVariable);
+        // Show work variables with their values
+        for (VariableDetails zVariable : executionDetails.programDetails().workVariables()) {
+            // Find the value from execution results
+            long zValue = findVariableValue(executionDetails.variables(), zVariable.getStringVariable());
             System.out.print(", " + zVariable.getStringVariable() + " = " + zValue);
         }
         System.out.println();
-        System.out.println("Cycles consumed: " +  executionDetails.cycles());
+        System.out.println("Cycles consumed: " + executionDetails.totalCycles());
+    }
+
+    // Helper method to find a variable's value in the results list
+    private static long findVariableValue(List<VariableDetails> variables, String variableName) {
+        for (VariableDetails var : variables) {
+            if (var.getStringVariable().equals(variableName)) {
+                return var.getValue();
+            }
+        }
+        return 0; // Default if not found
     }
 
     public static void showStatistics(List<RunHistoryDetails> runHistoryDetails) {

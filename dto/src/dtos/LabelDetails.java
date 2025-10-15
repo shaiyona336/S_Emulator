@@ -1,4 +1,7 @@
 package dtos;
 
-public class LabelDetails {
+public record LabelDetails(String label) {
+    public String getStringLabel() {
+        return label;
+    }
 }

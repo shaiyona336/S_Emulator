@@ -30,4 +30,9 @@ public interface Engine extends Serializable {
 
     List<String> getDisplayableProgramNames();
     void setContextProgram(String displayName);
+
+
+    boolean validateArchitecture(components.architecture.Architecture architecture);
+    String getArchitectureValidationMessage(components.architecture.Architecture architecture);
+    String getContextProgramName();
 }

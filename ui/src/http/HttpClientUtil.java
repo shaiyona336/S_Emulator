@@ -370,4 +370,54 @@ public class HttpClientUtil {
         public int instructionCount;
         public int maxDegree;
     }
+
+
+    public static ExecutionDetails runProgram(int degree, Long[] inputs, String architecture) throws IOException {
+        RunProgramRequest request = new RunProgramRequest(degree, inputs, architecture);
+        String response = sendPostJsonRequest("/run-program", request);
+        return GSON.fromJson(response, ExecutionDetails.class);
+    }
+
+    public static DebugStepDetails startDebug(int degree, Long[] inputs, String architecture) throws IOException {
+        StartDebugRequest request = new StartDebugRequest(degree, inputs, architecture);
+        String response = sendPostJsonRequest("/start-debug", request);
+        return GSON.fromJson(response, DebugStepDetails.class);
+    }
+
+    public static ArchitectureValidation validateArchitecture(String architecture) throws IOException {
+        String response = sendGetRequest("/validate-architecture?architecture=" + architecture);
+        return GSON.fromJson(response, ArchitectureValidation.class);
+    }
+
+// Add these inner classes at the end of HttpClientUtil
+
+    private static class RunProgramRequest {
+        int degree;
+        Long[] inputs;
+        String architecture;
+
+        RunProgramRequest(int degree, Long[] inputs, String architecture) {
+            this.degree = degree;
+            this.inputs = inputs;
+            this.architecture = architecture;
+        }
+    }
+
+    private static class StartDebugRequest {
+        int degree;
+        Long[] inputs;
+        String architecture;
+
+        StartDebugRequest(int degree, Long[] inputs, String architecture) {
+            this.degree = degree;
+            this.inputs = inputs;
+            this.architecture = architecture;
+        }
+    }
+
+    public static class ArchitectureValidation {
+        public boolean valid;
+        public String message;
+        public int architectureCost;
+    }
 }

@@ -1,139 +1,164 @@
 package fxml.debugger;
 
-import components.executor.Context;
-import components.variable.Variable;
+import dtos.DebugStepDetails;
 import dtos.ExecutionDetails;
 import dtos.ProgramDetails;
-import dtos.DebugStepDetails;
-import dtos.RunHistoryDetails;
-import fxml.VariableOutputRow;
+import dtos.VariableDetails;
 import fxml.app.mainController;
 import http.HttpClientUtil;
-
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.concurrent.Task;
 import javafx.fxml.FXML;
-import javafx.geometry.Pos;
 import javafx.scene.control.*;
-import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.GridPane;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
 
 public class DebuggerPanelController {
 
-    private mainController mainController;
-    private ProgramDetails loadedProgramDetails;
-    private int currentProgramDegree;
-
-    private boolean isInDebugMode = false;
-    private Map<String, Long> previousVariableState = new HashMap<>();
-    private final Map<String, TextField> variableInputFields = new LinkedHashMap<>();
-
-    @FXML private Button startRunButton, startDebugButton, stopButton, resumeButton, stepOverButton, clearInputsButton;
-    @FXML private VBox inputsContainer;
-    @FXML private TableView<VariableOutputRow> variablesTableView;
-    @FXML private TableColumn<VariableOutputRow, String> variableNameColumn;
-    @FXML private TableColumn<VariableOutputRow, String> variableValueColumn;
+    @FXML private Button startRegularButton;
+    @FXML private Button startDebugButton;
+    @FXML private Button stepOverButton;
+    @FXML private Button resumeButton;
+    @FXML private Button stopButton;
+    @FXML private GridPane inputVariablesGrid;
+    @FXML private TableView<VariableRow> variablesTableView;
+    @FXML private TableColumn<VariableRow, String> variableNameColumn;
+    @FXML private TableColumn<VariableRow, String> variableValueColumn;
     @FXML private Label cyclesLabel;
+
+    private mainController mainController;
+    private boolean isDebugging = false;
+    private Map<String, TextField> inputFields = new HashMap<>();
+    private ProgramDetails currentProgramDetails;
+    private int currentDegree;
+    private boolean architectureValid = false;
 
     @FXML
     public void initialize() {
-        variableNameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
-        variableValueColumn.setCellValueFactory(new PropertyValueFactory<>("value"));
+        variableNameColumn.setCellValueFactory(cellData ->
+                new javafx.beans.property.SimpleStringProperty(cellData.getValue().name));
+        variableValueColumn.setCellValueFactory(cellData ->
+                new javafx.beans.property.SimpleStringProperty(cellData.getValue().value));
 
-        variablesTableView.setRowFactory(tv -> new TableRow<VariableOutputRow>() {
-            @Override
-            protected void updateItem(VariableOutputRow item, boolean empty) {
-                super.updateItem(item, empty);
-                getStyleClass().remove("changed-variable-row");
-                if (!empty && item != null && item.isChanged()) {
-                    getStyleClass().add("changed-variable-row");
-                }
-            }
-        });
-        updateComponentStates();
+        updateButtonStates();
     }
 
     public void setMainController(mainController mainController) {
         this.mainController = mainController;
     }
 
-    public void setupForNewProgram(ProgramDetails programDetails, int currentDegree) {
-        this.loadedProgramDetails = programDetails;
-        this.currentProgramDegree = currentDegree;
-        if (isInDebugMode) {
-            stopDebugging();
-        }
-        resetInputsAndOutputs();
-
-        if (programDetails != null && programDetails.inputVariables() != null) {
-            programDetails.inputVariables().stream()
-                    .sorted(Comparator.comparingInt(v -> Integer.parseInt(v.getStringVariable().substring(1))))
-                    .forEach(this::createInputFieldForVariable);
-        }
-        updateComponentStates();
+    public void setArchitectureValid(boolean valid) {
+        this.architectureValid = valid;
+        updateButtonStates();
     }
 
-    // --- UI Event Handlers ---
+    public void setupForNewProgram(ProgramDetails programDetails, int degree) {
+        this.currentProgramDetails = programDetails;
+        this.currentDegree = degree;
+        this.isDebugging = false;
+
+        setupInputFields(programDetails);
+        clearVariablesTable();
+        cyclesLabel.setText("Cycles: 0");
+        updateButtonStates();
+    }
 
     @FXML
-    private void handleStartNormalRun() {
+    private void handleStartRegular() {
+        if (!architectureValid) {
+            showAlert(Alert.AlertType.ERROR, "Invalid Architecture",
+                    "The selected architecture does not support all instructions in this program.");
+            return;
+        }
+
+        Long[] inputs = collectInputs();
+        if (inputs == null) return;
+
+        String architecture = mainController.getSelectedArchitecture();
+
         Task<ExecutionDetails> runTask = new Task<>() {
             @Override
             protected ExecutionDetails call() throws Exception {
-                return HttpClientUtil.runProgram(currentProgramDegree, buildInputsArray());
+                return HttpClientUtil.runProgram(currentDegree, inputs, architecture);
             }
         };
 
         runTask.setOnSucceeded(e -> {
-            ExecutionDetails executionDetails = runTask.getValue();
-            displayExecutionResults(executionDetails);
-            if (mainController != null) mainController.onProgramRunFinished();
+            ExecutionDetails result = runTask.getValue();
+            displayExecutionResult(result);
+            mainController.onProgramRunFinished();
         });
 
         runTask.setOnFailed(e -> {
-            showAlert(Alert.AlertType.ERROR, "Execution Error",
-                    "Program encountered an error.", runTask.getException().getMessage());
+            Throwable ex = runTask.getException();
+            String message = ex.getMessage();
+
+            if (message != null && message.contains("Insufficient credits")) {
+                showAlert(Alert.AlertType.WARNING, "Insufficient Credits",
+                        "You don't have enough credits to run this program.\n\n" + message);
+            } else if (message != null && message.contains("Ran out of credits")) {
+                showAlert(Alert.AlertType.ERROR, "Credits Depleted",
+                        "You ran out of credits during execution.\n\n" + message);
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Execution Failed",
+                        "Failed to run program: " + message);
+            }
+            mainController.onProgramRunFinished();
         });
 
+        mainController.setExpansionControlsDisabled(true);
         new Thread(runTask).start();
     }
 
     @FXML
-    private void handleStartDebugRun() {
+    private void handleStartDebug() {
+        if (!architectureValid) {
+            showAlert(Alert.AlertType.ERROR, "Invalid Architecture",
+                    "The selected architecture does not support all instructions in this program.");
+            return;
+        }
+
+        Long[] inputs = collectInputs();
+        if (inputs == null) return;
+
+        String architecture = mainController.getSelectedArchitecture();
+
         Task<DebugStepDetails> debugTask = new Task<>() {
             @Override
             protected DebugStepDetails call() throws Exception {
-                return HttpClientUtil.startDebugging(currentProgramDegree, buildInputsArray());
+                return HttpClientUtil.startDebug(currentDegree, inputs, architecture);
             }
         };
 
         debugTask.setOnSucceeded(e -> {
-            DebugStepDetails initialStep = debugTask.getValue();
-            isInDebugMode = true;
-            updateComponentStates();
-            displayDebugStepResults(initialStep);
-            if (mainController != null) {
-                mainController.highlightInstruction(1);
-            }
+            isDebugging = true;
+            DebugStepDetails stepDetails = debugTask.getValue();
+            updateDebugView(stepDetails);
+            updateButtonStates();
+            mainController.setExpansionControlsDisabled(true);
         });
 
         debugTask.setOnFailed(e -> {
-            showAlert(Alert.AlertType.ERROR, "Debug Error",
-                    "Could not start debug session.", debugTask.getException().getMessage());
+            Throwable ex = debugTask.getException();
+            String message = ex.getMessage();
+
+            if (message != null && message.contains("Insufficient credits")) {
+                showAlert(Alert.AlertType.WARNING, "Insufficient Credits",
+                        "You don't have enough credits to debug this program.\n\n" + message);
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Debug Failed",
+                        "Failed to start debugging: " + message);
+            }
         });
 
         new Thread(debugTask).start();
     }
 
     @FXML
-    private void handleStepOverClick() {
-        if (!isInDebugMode) return;
+    private void handleStepOver() {
+        if (!isDebugging) return;
 
         Task<DebugStepDetails> stepTask = new Task<>() {
             @Override
@@ -143,32 +168,45 @@ public class DebuggerPanelController {
         };
 
         stepTask.setOnSucceeded(e -> {
-            DebugStepDetails nextStep = stepTask.getValue();
-            displayDebugStepResults(nextStep);
+            DebugStepDetails stepDetails = stepTask.getValue();
+            updateDebugView(stepDetails);
 
-            if (mainController != null) {
-                mainController.highlightInstruction(nextStep.nextInstructionNumber());
-            }
-
-            if (nextStep.isFinished()) {
-                showAlert(Alert.AlertType.INFORMATION, "Debug Finished",
-                        "The program has finished execution.", null);
-                stopDebugging();
+            if (stepDetails.isFinished()) {
+                isDebugging = false;
+                mainController.clearInstructionHighlight();
+                updateButtonStates();
+                mainController.setExpansionControlsDisabled(false);
+                mainController.onProgramRunFinished();
+                showAlert(Alert.AlertType.INFORMATION, "Debug Complete",
+                        "Program finished. Y = " + stepDetails.yValue());
+            } else {
+                mainController.onProgramRunFinished(); // Refresh credits
             }
         });
 
         stepTask.setOnFailed(e -> {
-            showAlert(Alert.AlertType.ERROR, "Step Over Error",
-                    "An error occurred during execution.", stepTask.getException().getMessage());
-            stopDebugging();
+            Throwable ex = stepTask.getException();
+            String message = ex.getMessage();
+
+            if (message != null && message.contains("Insufficient credits")) {
+                isDebugging = false;
+                mainController.clearInstructionHighlight();
+                updateButtonStates();
+                mainController.setExpansionControlsDisabled(false);
+                showAlert(Alert.AlertType.ERROR, "Credits Depleted",
+                        "You ran out of credits during debugging.\n\n" + message);
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Step Failed",
+                        "Failed to step over: " + message);
+            }
         });
 
         new Thread(stepTask).start();
     }
 
     @FXML
-    private void handleResumeClick() {
-        if (!isInDebugMode) return;
+    private void handleResume() {
+        if (!isDebugging) return;
 
         Task<ExecutionDetails> resumeTask = new Task<>() {
             @Override
@@ -178,22 +216,40 @@ public class DebuggerPanelController {
         };
 
         resumeTask.setOnSucceeded(e -> {
-            ExecutionDetails finalDetails = resumeTask.getValue();
-            displayExecutionResults(finalDetails);
-            stopDebugging();
+            isDebugging = false;
+            ExecutionDetails result = resumeTask.getValue();
+            displayExecutionResult(result);
+            mainController.clearInstructionHighlight();
+            updateButtonStates();
+            mainController.setExpansionControlsDisabled(false);
+            mainController.onProgramRunFinished();
         });
 
         resumeTask.setOnFailed(e -> {
-            showAlert(Alert.AlertType.ERROR, "Resume Error",
-                    "An error occurred during execution.", resumeTask.getException().getMessage());
-            stopDebugging();
+            Throwable ex = resumeTask.getException();
+            String message = ex.getMessage();
+
+            if (message != null && message.contains("Ran out of credits")) {
+                isDebugging = false;
+                mainController.clearInstructionHighlight();
+                updateButtonStates();
+                mainController.setExpansionControlsDisabled(false);
+                showAlert(Alert.AlertType.ERROR, "Credits Depleted",
+                        "You ran out of credits during execution.\n\n" + message);
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Resume Failed",
+                        "Failed to resume: " + message);
+            }
+            mainController.onProgramRunFinished();
         });
 
         new Thread(resumeTask).start();
     }
 
     @FXML
-    private void handleStopClick() {
+    private void handleStop() {
+        if (!isDebugging) return;
+
         Task<Void> stopTask = new Task<>() {
             @Override
             protected Void call() throws Exception {
@@ -202,148 +258,127 @@ public class DebuggerPanelController {
             }
         };
 
-        stopTask.setOnSucceeded(e -> stopDebugging());
+        stopTask.setOnSucceeded(e -> {
+            isDebugging = false;
+            mainController.clearInstructionHighlight();
+            clearVariablesTable();
+            cyclesLabel.setText("Cycles: 0");
+            updateButtonStates();
+            mainController.setExpansionControlsDisabled(false);
+        });
+
         new Thread(stopTask).start();
     }
 
-    @FXML
-    private void handleClearInputs() {
-        variableInputFields.values().forEach(TextField::clear);
+    private void setupInputFields(ProgramDetails programDetails) {
+        inputVariablesGrid.getChildren().clear();
+        inputFields.clear();
+
+        int row = 0;
+        for (VariableDetails var : programDetails.inputVariables()) {
+            Label label = new Label(var.getStringVariable() + ":");
+            TextField textField = new TextField("0");
+            textField.setPrefWidth(100);
+
+            inputVariablesGrid.add(label, 0, row);
+            inputVariablesGrid.add(textField, 1, row);
+
+            inputFields.put(var.getStringVariable(), textField);
+            row++;
+        }
+    }
+
+    private Long[] collectInputs() {
+        if (currentProgramDetails == null) return null;
+
+        try {
+            Long[] inputs = new Long[currentProgramDetails.inputVariables().size()];
+            int i = 0;
+            for (VariableDetails var : currentProgramDetails.inputVariables()) {
+                TextField field = inputFields.get(var.getStringVariable());
+                inputs[i++] = Long.parseLong(field.getText());
+            }
+            return inputs;
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.ERROR, "Invalid Input",
+                    "Please enter valid numbers for all input variables.");
+            return null;
+        }
+    }
+
+    private void updateDebugView(DebugStepDetails stepDetails) {
+        // Update variables table
         variablesTableView.getItems().clear();
-        cyclesLabel.setText("Total Cycles: N/A");
-    }
-
-    public void populateInputs(List<Long> inputs) {
-        if (inputs == null || inputs.isEmpty()) {
-            return;
+        for (VariableDetails var : stepDetails.variables()) {
+            variablesTableView.getItems().add(
+                    new VariableRow(var.getStringVariable(), String.valueOf(var.getValue()))
+            );
         }
 
-        variableInputFields.values().forEach(TextField::clear);
+        // Update cycles
+        cyclesLabel.setText("Cycles: " + stepDetails.totalCycles());
 
-        for (Map.Entry<String, TextField> entry : variableInputFields.entrySet()) {
-            String varName = entry.getKey();
-            TextField field = entry.getValue();
-            int varIndex = Integer.parseInt(varName.substring(1)) - 1;
-
-            if (varIndex < inputs.size()) {
-                Long value = inputs.get(varIndex);
-                if (value != null && value != 0) {
-                    field.setText(value.toString());
-                }
-            }
-        }
+        // Highlight current instruction
+        mainController.highlightInstruction(stepDetails.currentInstructionNumber());
     }
 
-    // State and UI management logic
+    private void displayExecutionResult(ExecutionDetails result) {
+        mainController.clearInstructionHighlight();
+        cyclesLabel.setText("Cycles: " + result.totalCycles());
 
-    private void updateComponentStates() {
-        boolean isProgramLoaded = loadedProgramDetails != null;
-
-        startRunButton.setDisable(!isProgramLoaded || isInDebugMode);
-        startDebugButton.setDisable(!isProgramLoaded || isInDebugMode);
-        clearInputsButton.setDisable(!isProgramLoaded || isInDebugMode);
-
-        variableInputFields.values().forEach(tf -> tf.setDisable(!isProgramLoaded || isInDebugMode));
-
-        stepOverButton.setDisable(!isInDebugMode);
-        resumeButton.setDisable(!isInDebugMode);
-        stopButton.setDisable(!isInDebugMode);
-
-        if (mainController != null) {
-            mainController.setExpansionControlsDisabled(isInDebugMode);
-        }
+        showAlert(Alert.AlertType.INFORMATION, "Execution Complete",
+                String.format("Program finished!\n\nY = %d\nTotal Cycles: %d",
+                        result.yValue(), result.totalCycles()));
     }
 
-    private void stopDebugging() {
-        isInDebugMode = false;
-        updateComponentStates();
-        if (mainController != null) {
-            mainController.clearInstructionHighlight();
-            mainController.onProgramRunFinished();
-        }
-    }
-
-    private void createInputFieldForVariable(Variable var) {
-        String varName = var.getStringVariable();
-        HBox inputBox = new HBox(5);
-        inputBox.setAlignment(Pos.CENTER_LEFT);
-        Label varLabel = new Label(varName + ":");
-        varLabel.setPrefWidth(40);
-        TextField inputField = new TextField();
-        inputField.setPromptText("Enter value for " + varName);
-        inputBox.getChildren().addAll(varLabel, inputField);
-        inputsContainer.getChildren().add(inputBox);
-        variableInputFields.put(varName, inputField);
-    }
-
-    private void resetInputsAndOutputs() {
-        inputsContainer.getChildren().clear();
-        variableInputFields.clear();
+    private void clearVariablesTable() {
         variablesTableView.getItems().clear();
-        cyclesLabel.setText("Total Cycles: N/A");
     }
 
-    private Long[] buildInputsArray() {
-        if (variableInputFields.isEmpty()) return new Long[0];
-        int maxVarNum = variableInputFields.keySet().stream()
-                .mapToInt(name -> Integer.parseInt(name.substring(1)))
-                .max().orElse(0);
-        Long[] inputs = new Long[maxVarNum];
-        Arrays.fill(inputs, 0L);
-        variableInputFields.forEach((name, textField) -> {
-            int index = Integer.parseInt(name.substring(1)) - 1;
-            String text = textField.getText().trim();
-            if (!text.isEmpty()) {
-                try {
-                    inputs[index] = Long.parseLong(text);
-                } catch (NumberFormatException e) {
-                    // Keep as 0
-                }
-            }
+    private void updateButtonStates() {
+        Platform.runLater(() -> {
+            boolean hasProgram = currentProgramDetails != null;
+            startRegularButton.setDisable(!hasProgram || isDebugging || !architectureValid);
+            startDebugButton.setDisable(!hasProgram || isDebugging || !architectureValid);
+            stepOverButton.setDisable(!isDebugging);
+            resumeButton.setDisable(!isDebugging);
+            stopButton.setDisable(!isDebugging);
         });
-        return inputs;
     }
 
-    private void displayExecutionResults(ExecutionDetails executionDetails) {
-        if (executionDetails == null) return;
-        previousVariableState.clear();
-        displayContext(executionDetails.variables());
-        cyclesLabel.setText("Total Cycles: " + executionDetails.cycles());
-    }
-
-    private void displayDebugStepResults(DebugStepDetails stepDetails) {
-        if (stepDetails == null) return;
-        displayContext(stepDetails.context());
-        cyclesLabel.setText("Total Cycles: " + stepDetails.context().getTotalCycles());
-    }
-
-    private void displayContext(Context context) {
-        if (context == null || context.getVariables() == null) return;
-        Map<String, Long> currentVariableState = new HashMap<>();
-        context.getVariables().forEach((var, val) ->
-                currentVariableState.put(var.getStringVariable(), val));
-
-        ObservableList<VariableOutputRow> variableRows = FXCollections.observableArrayList();
-        currentVariableState.forEach((name, value) -> {
-            VariableOutputRow row = new VariableOutputRow(name, String.valueOf(value));
-            if (previousVariableState.containsKey(name) &&
-                    !previousVariableState.get(name).equals(value) ||
-                    (!previousVariableState.containsKey(name) && value != 0)) {
-                row.setChanged(true);
-            }
-            variableRows.add(row);
-        });
-        variablesTableView.setItems(variableRows);
-        previousVariableState = currentVariableState;
-    }
-
-    private void showAlert(Alert.AlertType type, String title, String header, String content) {
+    private void showAlert(Alert.AlertType type, String title, String content) {
         Platform.runLater(() -> {
             Alert alert = new Alert(type);
             alert.setTitle(title);
-            alert.setHeaderText(header);
+            alert.setHeaderText(null);
             alert.setContentText(content);
             alert.showAndWait();
         });
+    }
+
+    public static class VariableRow {
+        private final String name;
+        private final String value;
+
+        public VariableRow(String name, String value) {
+            this.name = name;
+            this.value = value;
+        }
+
+        public String getName() { return name; }
+        public String getValue() { return value; }
+    }
+
+
+    public void populateInputsFromValues(Long[] values) {
+        if (currentProgramDetails == null || values == null) return;
+
+        int i = 0;
+        for (VariableDetails var : currentProgramDetails.inputVariables()) {
+            TextField field = inputFields.get(var.getStringVariable());
+            if (field != null && i < values.length) {
+                field.setText(String.valueOf(values[i++]));
+            }
+        }
     }
 }

@@ -2,6 +2,7 @@ package fxml.statistics;
 
 import dtos.ExecutionDetails;
 import dtos.RunHistoryDetails;
+import dtos.VariableDetails;
 import fxml.debugger.DebuggerPanelController;
 import http.HttpClientUtil;
 import javafx.application.Platform;
@@ -169,18 +170,34 @@ public class StatisticsController {
         ObservableList<VariableRow> variableRows = FXCollections.observableArrayList();
         variableRows.add(new VariableRow("Output", "y", runDetails.yValue()));
 
+
+// NEW - find matching variable in the execution results
         if (results.programDetails() != null && results.programDetails().inputVariables() != null) {
-            results.programDetails().inputVariables().forEach(var -> {
-                long value = results.variables().getVariableValue(var);
-                variableRows.add(new VariableRow("Input", var.getStringVariable(), value));
-            });
+            for (VariableDetails varFromProgram : results.programDetails().inputVariables()) {
+                // Find the matching variable in the execution results
+                long value = 0;
+                for (VariableDetails varWithValue : results.variables()) {
+                    if (varWithValue.getStringVariable().equals(varFromProgram.getStringVariable())) {
+                        value = varWithValue.getValue();
+                        break;
+                    }
+                }
+                variableRows.add(new VariableRow("Input", varFromProgram.getStringVariable(), value));
+            }
         }
 
         if (results.programDetails() != null && results.programDetails().workVariables() != null) {
-            results.programDetails().workVariables().forEach(var -> {
-                long value = results.variables().getVariableValue(var);
-                variableRows.add(new VariableRow("Work", var.getStringVariable(), value));
-            });
+            for (VariableDetails varFromProgram : results.programDetails().workVariables()) {
+                // Find the matching variable in the execution results
+                long value = 0;
+                for (VariableDetails varWithValue : results.variables()) {
+                    if (varWithValue.getStringVariable().equals(varFromProgram.getStringVariable())) {
+                        value = varWithValue.getValue();
+                        break;
+                    }
+                }
+                variableRows.add(new VariableRow("Work", varFromProgram.getStringVariable(), value));
+            }
         }
 
         variableTable.setItems(variableRows);
@@ -214,7 +231,8 @@ public class StatisticsController {
             return;
         }
 
-        debuggerController.populateInputs(selectedRun.inputs());
+        Long[] inputsArray = selectedRun.inputs().toArray(new Long[0]);
+        debuggerController.populateInputsFromValues(inputsArray);
 
         showAlert(Alert.AlertType.INFORMATION, "Inputs Loaded",
                 "Inputs from Run #" + selectedRun.runNumber() + " have been loaded",

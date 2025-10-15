@@ -1,183 +1,134 @@
 package fxml.instruction_table;
 
-import components.instruction.Instruction;
+import dtos.InstructionDetails;
 import dtos.ProgramDetails;
 import fxml.instruction_history.instruction_historyController;
+import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.control.*;
+import javafx.scene.control.TableColumn;
+import javafx.scene.control.TableRow;
+import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.paint.Color;
 
-import fxml.InstructionRow;
-
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import java.util.ArrayList;
+import java.util.List;
 
 public class instruction_tableController {
 
-    @FXML private TableView<InstructionRow> instructionsTableView;
-    @FXML private TableColumn<InstructionRow, Integer> numberColumn;
-    @FXML private TableColumn<InstructionRow, String> typeColumn;
-    @FXML private TableColumn<InstructionRow, String> labelColumn;
-    @FXML private TableColumn<InstructionRow, String> instructionColumn;
+    @FXML private TableView<InstructionRow> instructionTableView;
+    @FXML private TableColumn<InstructionRow, Integer> indexColumn;
+    @FXML private TableColumn<InstructionRow, Integer> instructionNumberColumn;
     @FXML private TableColumn<InstructionRow, Integer> cyclesColumn;
-    @FXML private Label summaryLabel;
+    @FXML private TableColumn<InstructionRow, String> nameColumn;
+    @FXML private TableColumn<InstructionRow, String> operand1Column;
+    @FXML private TableColumn<InstructionRow, String> operand2Column;
+    @FXML private TableColumn<InstructionRow, String> architectureColumn;  // NEW
 
-    private String highlightedTerm = "";
-
-    //store the current program details and instructions for history tracking
-    private ProgramDetails currentProgramDetails;
-
-    //reference to the instruction history controller
     private instruction_historyController historyController;
+    private String currentHighlightTerm = "";
 
     @FXML
     public void initialize() {
-
-        numberColumn.setCellValueFactory(new PropertyValueFactory<>("number"));
-        typeColumn.setCellValueFactory(new PropertyValueFactory<>("type"));
-        labelColumn.setCellValueFactory(new PropertyValueFactory<>("label"));
-        instructionColumn.setCellValueFactory(new PropertyValueFactory<>("instructionText"));
+        indexColumn.setCellValueFactory(new PropertyValueFactory<>("index"));
+        instructionNumberColumn.setCellValueFactory(new PropertyValueFactory<>("instructionNumber"));
         cyclesColumn.setCellValueFactory(new PropertyValueFactory<>("cycles"));
+        nameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        operand1Column.setCellValueFactory(new PropertyValueFactory<>("operand1"));
+        operand2Column.setCellValueFactory(new PropertyValueFactory<>("operand2"));
+        architectureColumn.setCellValueFactory(new PropertyValueFactory<>("architecture"));  // NEW
 
-        instructionsTableView.setRowFactory(tv -> new TableRow<InstructionRow>() {
-            @Override
-            protected void updateItem(InstructionRow item, boolean empty) {
-                super.updateItem(item, empty);
-
-                //first, remove any existing highlight
-                getStyleClass().remove("highlighted-row");
-
-                if (empty || item == null) {
-                    //dont style empty rows
-                    return;
+        // Row factory for highlighting
+        instructionTableView.setRowFactory(tv -> {
+            TableRow<InstructionRow> row = new TableRow<>();
+            row.itemProperty().addListener((obs, oldItem, newItem) -> {
+                if (newItem != null && shouldHighlight(newItem)) {
+                    row.setStyle("-fx-background-color: yellow;");
+                } else {
+                    row.setStyle("");
                 }
-
-                // If a term is selected and this row's data contains it, apply the style
-                if (highlightedTerm != null && !highlightedTerm.isEmpty()) {
-                    String label = item.getLabel() != null ? item.getLabel() : "";
-                    String instruction = item.getInstructionText() != null ? item.getInstructionText() : "";
-
-                    //check if the label matches or if the instruction text contains the variable
-                    if (label.equals(highlightedTerm) || instruction.contains(highlightedTerm)) {
-                        getStyleClass().add("highlighted-row");
-                    }
-                }
-            }
+            });
+            return row;
         });
-
-        instructionsTableView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
-
-        //add a listener for row selection to update the history table
-        instructionsTableView.getSelectionModel().selectedItemProperty().addListener(
-                (obs, oldSelection, newSelection) -> {
-                    if (newSelection != null && historyController != null) {
-                        //get the actual instruction object based on the selected row
-                        int instructionIndex = newSelection.getNumber() - 1; //convert 1-based to 0-based
-                        if (currentProgramDetails != null &&
-                                instructionIndex >= 0 &&
-                                instructionIndex < currentProgramDetails.instructions().size()) {
-
-                            Instruction selectedInstruction = currentProgramDetails.instructions().get(instructionIndex);
-                            historyController.showInstructionHistory(selectedInstruction);
-                        }
-                    }
-                }
-        );
     }
-
 
     public void setHistoryController(instruction_historyController historyController) {
         this.historyController = historyController;
     }
 
+    public void loadProgramData(ProgramDetails programDetails) {
+        List<InstructionRow> rows = new ArrayList<>();
+        for (InstructionDetails instruction : programDetails.instructions()) {
+            rows.add(new InstructionRow(
+                    instruction.index(),
+                    instruction.instructionNumber(),
+                    0,
+                    instruction.name(),
+                    instruction.operand1(),
+                    instruction.operand2(),
+                    instruction.architecture()  // NEW
+            ));
+        }
+        instructionTableView.setItems(FXCollections.observableArrayList(rows));
+    }
+
+    public void highlightTerm(String term) {
+        currentHighlightTerm = term;
+        instructionTableView.refresh();
+    }
+
     public void highlightInstruction(int instructionNumber) {
-        if (instructionNumber > 0 && instructionNumber <= instructionsTableView.getItems().size()) {
-            //select the row. The CSS will style it
-            instructionsTableView.getSelectionModel().select(instructionNumber - 1);
-            //scroll to the selected row to make sure it's visible
-            instructionsTableView.scrollTo(instructionNumber - 1);
+        for (InstructionRow row : instructionTableView.getItems()) {
+            if (row.getInstructionNumber() == instructionNumber) {
+                instructionTableView.getSelectionModel().select(row);
+                instructionTableView.scrollTo(row);
+                break;
+            }
         }
     }
 
     public void clearInstructionHighlight() {
-        instructionsTableView.getSelectionModel().clearSelection();
+        instructionTableView.getSelectionModel().clearSelection();
     }
 
-    public void highlightTerm(String term) {
-        this.highlightedTerm = term;
-        //refresh the table to force the row factory to be called again on all rows
-        if (instructionsTableView != null) {
-            instructionsTableView.refresh();
+    private boolean shouldHighlight(InstructionRow row) {
+        if (currentHighlightTerm == null || currentHighlightTerm.isEmpty()) {
+            return false;
         }
+        return row.getName().contains(currentHighlightTerm) ||
+                row.getOperand1().contains(currentHighlightTerm) ||
+                row.getOperand2().contains(currentHighlightTerm);
     }
 
-    //InstructionParser used to break down from instruction.getStringInstruction() only the command part
-    public static class InstructionParser {
+    public static class InstructionRow {
+        private final SimpleIntegerProperty index;
+        private final SimpleIntegerProperty instructionNumber;
+        private final SimpleIntegerProperty cycles;
+        private final SimpleStringProperty name;
+        private final SimpleStringProperty operand1;
+        private final SimpleStringProperty operand2;
+        private final SimpleStringProperty architecture;
 
-        //this pattern matches your formatted string and captures the command part
-        private static final Pattern INSTRUCTION_PATTERN = Pattern.compile(
-                // Matches: #1 (B) [ L1  ] DECREASE x1 (1)
-                "^#\\d+\\s+\\(\\w\\)\\s+\\[.*?\\]\\s+(.+?)\\s+\\(\\d+\\)$"
-        );
-
-
-        public static String getCommandFromDisplayString(String fullInstructionString) {
-            Matcher matcher = INSTRUCTION_PATTERN.matcher(fullInstructionString);
-            if (matcher.find()) {
-                //group 1 is the part of the pattern inside the first parentheses: (.+?)
-                return matcher.group(1).trim();
-            }
-            //if the pattern doesn't match for some reason, return the original string
-            return fullInstructionString;
-        }
-    }
-
-    public void loadProgramData(ProgramDetails programDetails) {
-        //store the current program details for history tracking
-        this.currentProgramDetails = programDetails;
-
-        //clear any old data from the table
-        instructionsTableView.getItems().clear();
-
-        //clear the history table when loading new program data
-        if (historyController != null) {
-            historyController.clearHistory();
+        public InstructionRow(int index, int instructionNumber, int cycles, String name,
+                              String operand1, String operand2, String architecture) {
+            this.index = new SimpleIntegerProperty(index);
+            this.instructionNumber = new SimpleIntegerProperty(instructionNumber);
+            this.cycles = new SimpleIntegerProperty(cycles);
+            this.name = new SimpleStringProperty(name);
+            this.operand1 = new SimpleStringProperty(operand1);
+            this.operand2 = new SimpleStringProperty(operand2);
+            this.architecture = new SimpleStringProperty(architecture);
         }
 
-        //create a list that the TableView can observe for changes
-        ObservableList<InstructionRow> instructionRows = FXCollections.observableArrayList();
-
-        int instructionCounter = 1;
-        for (Instruction instruction : programDetails.instructions()) {
-            String fullDisplayString = instruction.getStringInstruction();
-            String commandText = InstructionParser.getCommandFromDisplayString(fullDisplayString);
-            InstructionRow row = new InstructionRow(
-                    instructionCounter++,
-                    String.valueOf(instruction.getInstructionTypeChar()),
-                    instruction.getLabel().getStringLabel(),
-                    commandText,
-                    instruction.getCyclesNumber()
-            );
-            instructionRows.add(row);
-        }
-
-        //put new data in table
-        instructionsTableView.setItems(instructionRows);
-
-        //update the summary line with instruction counts
-        int basicCount = 0;
-        int syntheticCount = 0;
-        for (Instruction inst : programDetails.instructions()) {
-            if (inst.getInstructionTypeChar() == 'B') {
-                basicCount++;
-            } else {
-                syntheticCount++;
-            }
-        }
-        summaryLabel.setText(String.format("Total: %d instructions (Basic: %d, Synthetic: %d)",
-                programDetails.instructions().size(), basicCount, syntheticCount));
+        // Getters
+        public int getIndex() { return index.get(); }
+        public int getInstructionNumber() { return instructionNumber.get(); }
+        public int getCycles() { return cycles.get(); }
+        public String getName() { return name.get(); }
+        public String getOperand1() { return operand1.get(); }
+        public String getOperand2() { return operand2.get(); }
+        public String getArchitecture() { return architecture.get(); }
     }
 }

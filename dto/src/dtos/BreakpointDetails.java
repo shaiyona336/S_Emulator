@@ -1,4 +1,7 @@
 package dtos;
 
-public record BreakpointDetails() {
+public record BreakpointDetails(int instructionNumber) {
+    public int getInstructionNumber() {
+        return instructionNumber;
+    }
 }

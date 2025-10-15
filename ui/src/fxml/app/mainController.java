@@ -19,15 +19,12 @@ import javafx.stage.Stage;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class mainController {
 
-    // Remove loadButton and loadingProgressBar
-    // Remove loadedFileLabel
-
-    // Add new top bar elements
     @FXML private Label usernameLabel;
     @FXML private Label creditsLabel;
 
@@ -38,6 +35,11 @@ public class mainController {
     @FXML private ComboBox<String> programSelectorComboBox;
     @FXML private Button backToDashboardButton;
 
+    // Architecture components
+    @FXML private ComboBox<String> architectureComboBox;
+    @FXML private Label architectureCostLabel;
+    @FXML private Label architectureValidationLabel;
+
     @FXML private instruction_tableController instructionsTableController;
     @FXML private instruction_historyController instructionHistoryController;
     @FXML private DebuggerPanelController debuggerController;
@@ -47,6 +49,7 @@ public class mainController {
     private boolean isProgramLoaded = false;
     private String currentUsername;
     private Timer creditRefreshTimer;
+    private String selectedArchitecture = "Generation I";
 
     @FXML
     public void initialize() {
@@ -74,6 +77,17 @@ public class mainController {
             }
         });
 
+        // Architecture selection listener
+        if (architectureComboBox != null) {
+            architectureComboBox.getSelectionModel().selectFirst();
+            architectureComboBox.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {
+                if (newValue != null) {
+                    selectedArchitecture = newValue;
+                    validateArchitecture();
+                }
+            });
+        }
+
         updateButtonStates();
         updateDegreeLabel();
         highlightComboBox.setDisable(true);
@@ -92,7 +106,10 @@ public class mainController {
         return currentUsername;
     }
 
-    // Call this method after navigation from dashboard
+    public String getSelectedArchitecture() {
+        return selectedArchitecture;
+    }
+
     public void initializeWithProgram() {
         if (!isProgramLoaded) {
             setupExpansionForNewProgram();
@@ -179,18 +196,22 @@ public class mainController {
         }
     }
 
-
     public void setExpansionControlsDisabled(boolean disabled) {
         expandButton.setDisable(disabled);
         collapseButton.setDisable(disabled);
         programSelectorComboBox.setDisable(disabled);
         highlightComboBox.setDisable(disabled);
+        if (architectureComboBox != null) {
+            architectureComboBox.setDisable(disabled);
+        }
         if (!disabled) {
             updateButtonStates();
         }
     }
 
     private void setupExpansionForNewProgram() {
+        if (!isProgramLoaded) return;
+
         Task<Integer> maxDegreeTask = new Task<>() {
             @Override
             protected Integer call() throws Exception {
@@ -236,6 +257,8 @@ public class mainController {
             populateHighlightComboBox(programDetails);
             updateDegreeLabel();
             updateButtonStates();
+            updateArchitectureSummary(programDetails);
+            validateArchitecture();
         });
 
         expandTask.setOnFailed(e -> {
@@ -285,6 +308,65 @@ public class mainController {
         highlightComboBox.setDisable(false);
     }
 
+    private void updateArchitectureSummary(ProgramDetails programDetails) {
+        if (programDetails == null || programDetails.architectureInstructionCounts() == null) {
+            return;
+        }
+
+        Map<String, Integer> counts = programDetails.architectureInstructionCounts();
+
+        // Update the architecture summary display
+        int gen1 = counts.getOrDefault("GEN_I", 0);
+        int gen2 = counts.getOrDefault("GEN_II", 0);
+        int gen3 = counts.getOrDefault("GEN_III", 0);
+        int gen4 = counts.getOrDefault("GEN_IV", 0);
+
+        String summary = String.format("Gen I: %d | Gen II: %d | Gen III: %d | Gen IV: %d",
+                gen1, gen2, gen3, gen4);
+
+        // You can add this to a label if you have one
+        System.out.println("Architecture Summary: " + summary);
+    }
+
+    private void validateArchitecture() {
+        if (selectedArchitecture == null) return;
+
+        new Thread(() -> {
+            try {
+                HttpClientUtil.ArchitectureValidation validation =
+                        HttpClientUtil.validateArchitecture(selectedArchitecture);
+
+                Platform.runLater(() -> {
+                    if (architectureCostLabel != null) {
+                        architectureCostLabel.setText("Cost: " + validation.architectureCost + " credits");
+                    }
+
+                    if (architectureValidationLabel != null) {
+                        if (validation.valid) {
+                            architectureValidationLabel.setText("✓ All instructions supported");
+                            architectureValidationLabel.setStyle("-fx-text-fill: green; -fx-font-size: 9px;");
+                        } else {
+                            architectureValidationLabel.setText("✗ " + validation.message);
+                            architectureValidationLabel.setStyle("-fx-text-fill: red; -fx-font-size: 9px;");
+                        }
+                    }
+
+                    // Update debugger with validation result
+                    if (debuggerController != null) {
+                        debuggerController.setArchitectureValid(validation.valid);
+                    }
+                });
+            } catch (Exception e) {
+                Platform.runLater(() -> {
+                    if (architectureValidationLabel != null) {
+                        architectureValidationLabel.setText("Failed to validate: " + e.getMessage());
+                        architectureValidationLabel.setStyle("-fx-text-fill: red; -fx-font-size: 9px;");
+                    }
+                });
+            }
+        }).start();
+    }
+
     private void startCreditRefresh() {
         creditRefreshTimer = new Timer(true);
         creditRefreshTimer.scheduleAtFixedRate(new TimerTask() {
@@ -292,7 +374,7 @@ public class mainController {
             public void run() {
                 refreshCredits();
             }
-        }, 0, 2000);
+        }, 0, 1000); // Refresh every 1 second for credits
     }
 
     private void refreshCredits() {
@@ -302,7 +384,11 @@ public class mainController {
                 for (HttpClientUtil.UserInfo user : users) {
                     if (user.username.equals(currentUsername)) {
                         int credits = user.credits;
-                        Platform.runLater(() -> creditsLabel.setText(String.valueOf(credits)));
+                        Platform.runLater(() -> {
+                            if (creditsLabel != null) {
+                                creditsLabel.setText(String.valueOf(credits));
+                            }
+                        });
                         break;
                     }
                 }

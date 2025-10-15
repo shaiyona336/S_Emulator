@@ -11,7 +11,7 @@ import utils.GsonProvider;
 
 import java.io.IOException;
 
-@WebServlet(name = "ProgramDetailsServlet", urlPatterns = "/program-details")
+@WebServlet(name = "ProgramDetailsServlet", urlPatterns = "/program-details2")
 public class ProgramDetailsServlet extends HttpServlet {
     private final Gson gson = GsonProvider.getGson();
 
