@@ -1,3 +1,4 @@
+// engine/src/components/engine/Engine.java
 package components.engine;
 
 import dtos.DebugStepDetails;
@@ -19,10 +20,8 @@ public interface Engine extends Serializable {
     List<RunHistoryDetails> getStatistics();
     boolean isRunning();
 
-
-
-    //for debugging
-    DebugStepDetails startDebugging(int degree, Long[] inputs);
+    // Updated for debugging with credits
+    DebugStepDetails startDebugging(int degree, Long[] inputs, String architecture, int initialCredits);  // UPDATED
     DebugStepDetails stepOver();
     ExecutionDetails resume();
     void stop();

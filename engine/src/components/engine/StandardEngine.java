@@ -37,6 +37,10 @@ public class StandardEngine implements Engine {
     private Program debugProgram = null;
     private int debugExpansionDegree = 0;
 
+    private int debugCreditsRemaining = 0;
+    private String debugArchitecture = null;
+
+
 
     @Override
     public void loadProgramFromFile(File file) {
@@ -188,12 +192,15 @@ public class StandardEngine implements Engine {
     }
 
     @Override
-    public DebugStepDetails startDebugging(int degree, Long[] inputs) {
+    public DebugStepDetails startDebugging(int degree, Long[] inputs, String architecture, int initialCredits) {
         if (isInDebugMode) {
             stop();
         }
         this.debugExpansionDegree = degree;
         this.debugProgram = this.contextProgram;
+        this.debugArchitecture = architecture;
+        this.debugCreditsRemaining = initialCredits;
+
         for (int i = 0; i < degree; i++) {
             this.debugProgram = this.debugProgram.expand(getProgramMap());
         }
@@ -205,20 +212,43 @@ public class StandardEngine implements Engine {
         return new DebugStepDetails(
                 this.debugExecutor.getVariablesContext(),
                 1,
-                this.debugExecutor.isFinished()
+                this.debugExecutor.isFinished(),
+                this.debugCreditsRemaining,
+                0
         );
     }
+
 
     @Override
     public DebugStepDetails stepOver() {
         if (!isInDebugMode || this.debugExecutor == null) {
             throw new IllegalStateException("Not in a debug session. Cannot step over.");
         }
+
+        // Get current instruction to calculate cycles
+        int cyclesBeforeStep = this.debugExecutor.getCyclesNumber();
+
         this.debugExecutor.stepOver();
+
+        int cyclesAfterStep = this.debugExecutor.getCyclesNumber();
+        int cyclesConsumed = cyclesAfterStep - cyclesBeforeStep;
+
+        // Deduct credits for cycles consumed
+        this.debugCreditsRemaining -= cyclesConsumed;
+
+        // Check if out of credits
+        if (this.debugCreditsRemaining < 0) {
+            this.debugCreditsRemaining = 0;
+            stop();
+            throw new RuntimeException("Out of credits! Program stopped.");
+        }
+
         return new DebugStepDetails(
                 this.debugExecutor.getVariablesContext(),
                 this.debugExecutor.getNextInstructionNumber(),
-                this.debugExecutor.isFinished()
+                this.debugExecutor.isFinished(),
+                this.debugCreditsRemaining,
+                cyclesConsumed
         );
     }
 
@@ -227,11 +257,35 @@ public class StandardEngine implements Engine {
         if (!isInDebugMode || this.debugExecutor == null) {
             throw new IllegalStateException("Not in a debug session. Cannot resume.");
         }
+
+        int cyclesBeforeResume = this.debugExecutor.getCyclesNumber();
         Long y = this.debugExecutor.resume();
-        runHistoryDetails.add(new RunHistoryDetails(++runNumber, this.debugExpansionDegree, List.of(this.debugExecutor.getInitialInputs()), y, this.debugExecutor.getCyclesNumber()));
+        int cyclesAfterResume = this.debugExecutor.getCyclesNumber();
+        int cyclesConsumed = cyclesAfterResume - cyclesBeforeResume;
+
+        // Deduct remaining cycles
+        this.debugCreditsRemaining -= cyclesConsumed;
+
+        if (this.debugCreditsRemaining < 0) {
+            this.debugCreditsRemaining = 0;
+        }
+
+        runHistoryDetails.add(new RunHistoryDetails(
+                ++runNumber,
+                this.debugExpansionDegree,
+                List.of(this.debugExecutor.getInitialInputs()),
+                y,
+                this.debugExecutor.getCyclesNumber()
+        ));
 
         ExecutionDetails finalDetails = new ExecutionDetails(
-                new ProgramDetails(this.debugProgram.getName(), this.debugProgram.getInputVariables(getProgramMap()), this.debugProgram.getWorkVariables(getProgramMap()), this.debugProgram.getLabels(getProgramMap()), this.debugProgram.getInstructions()),
+                new ProgramDetails(
+                        this.debugProgram.getName(),
+                        this.debugProgram.getInputVariables(getProgramMap()),
+                        this.debugProgram.getWorkVariables(getProgramMap()),
+                        this.debugProgram.getLabels(getProgramMap()),
+                        this.debugProgram.getInstructions()
+                ),
                 this.debugExecutor.getVariablesContext(),
                 this.debugExecutor.getCyclesNumber()
         );
@@ -244,6 +298,8 @@ public class StandardEngine implements Engine {
         this.debugExecutor = null;
         this.debugProgram = null;
         this.isInDebugMode = false;
+        this.debugCreditsRemaining = 0;
+        this.debugArchitecture = null;
     }
 
     @Override

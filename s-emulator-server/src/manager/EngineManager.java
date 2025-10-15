@@ -206,10 +206,10 @@ public class EngineManager {
         return null;
     }
 
-    public DebugStepDetails startDebugging(String username, int degree, Long[] inputs) {
+    public DebugStepDetails startDebugging(String username, int degree, Long[] inputs, String architecture, int initialCredits) {
         Engine engine = getUserEngine(username);
         if (engine != null && engine.isProgramLoaded()) {
-            return engine.startDebugging(degree, inputs);
+            return engine.startDebugging(degree, inputs, architecture, initialCredits);
         }
         return null;
     }

@@ -42,6 +42,9 @@ public class DebuggerPanelController {
     @FXML private Label architectureCostLabel;
     @FXML private Label requiredCreditsLabel;
 
+    @FXML private Label creditsRemainingLabel;
+
+
     @FXML
     public void initialize() {
         variableNameColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
@@ -192,10 +195,21 @@ public class DebuggerPanelController {
 
     @FXML
     private void handleStartDebugRun() {
+        String selectedArch = architectureComboBox.getValue();
+        if (selectedArch == null) {
+            showAlert(Alert.AlertType.WARNING, "No Architecture",
+                    "Please select an architecture", null);
+            return;
+        }
+
         Task<DebugStepDetails> debugTask = new Task<>() {
             @Override
             protected DebugStepDetails call() throws Exception {
-                return HttpClientUtil.startDebugging(currentProgramDegree, buildInputsArray());
+                return HttpClientUtil.startDebugging(
+                        currentProgramDegree,
+                        buildInputsArray(),
+                        selectedArch
+                );
             }
         };
 
@@ -204,14 +218,16 @@ public class DebuggerPanelController {
             isInDebugMode = true;
             updateComponentStates();
             displayDebugStepResults(initialStep);
+            updateCreditsDisplay(initialStep.creditsRemaining());  // NEW
             if (mainController != null) {
                 mainController.highlightInstruction(1);
             }
         });
 
         debugTask.setOnFailed(e -> {
+            String errorMsg = debugTask.getException().getMessage();
             showAlert(Alert.AlertType.ERROR, "Debug Error",
-                    "Could not start debug session.", debugTask.getException().getMessage());
+                    "Could not start debug session.", errorMsg);
         });
 
         new Thread(debugTask).start();
@@ -231,6 +247,7 @@ public class DebuggerPanelController {
         stepTask.setOnSucceeded(e -> {
             DebugStepDetails nextStep = stepTask.getValue();
             displayDebugStepResults(nextStep);
+            updateCreditsDisplay(nextStep.creditsRemaining());  // NEW
 
             if (mainController != null) {
                 mainController.highlightInstruction(nextStep.nextInstructionNumber());
@@ -244,12 +261,34 @@ public class DebuggerPanelController {
         });
 
         stepTask.setOnFailed(e -> {
-            showAlert(Alert.AlertType.ERROR, "Step Over Error",
-                    "An error occurred during execution.", stepTask.getException().getMessage());
+            String errorMsg = stepTask.getException().getMessage();
+            if (errorMsg.contains("Out of credits")) {
+                showAlert(Alert.AlertType.ERROR, "Out of Credits",
+                        "You ran out of credits!", errorMsg);
+            } else {
+                showAlert(Alert.AlertType.ERROR, "Step Over Error",
+                        "An error occurred during execution.", errorMsg);
+            }
             stopDebugging();
         });
 
         new Thread(stepTask).start();
+    }
+
+    private void updateCreditsDisplay(int creditsRemaining) {
+        Platform.runLater(() -> {
+            creditsRemainingLabel.setText("Credits Remaining: " + creditsRemaining);
+            if (creditsRemaining < 100) {
+                creditsRemainingLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+            } else {
+                creditsRemainingLabel.setStyle("-fx-text-fill: black;");
+            }
+
+            // גם עדכן את mainController
+            if (mainController != null) {
+                mainController.onProgramRunFinished();  // This will refresh credits in top bar
+            }
+        });
     }
 
     @FXML

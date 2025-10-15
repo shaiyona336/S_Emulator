@@ -1,6 +1,8 @@
+// s-emulator-server/src/servlets/DebugServlet.java
 package servlets;
 
 import com.google.gson.Gson;
+import components.architecture.Architecture;
 import dtos.DebugStepDetails;
 import dtos.ExecutionDetails;
 import jakarta.servlet.annotation.WebServlet;
@@ -8,6 +10,7 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import manager.EngineManager;
+import manager.User;
 import utils.GsonProvider;
 
 import java.io.BufferedReader;
@@ -36,6 +39,7 @@ public class DebugServlet extends HttpServlet {
         }
 
         EngineManager engineManager = EngineManager.getInstance();
+        User user = engineManager.getUser(username);
 
         try {
             switch (action) {
@@ -49,38 +53,73 @@ public class DebugServlet extends HttpServlet {
                     }
 
                     DebugStartRequest debugRequest = gson.fromJson(sb.toString(), DebugStartRequest.class);
-                    if (debugRequest == null) {
+                    if (debugRequest == null || debugRequest.architecture == null) {
                         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                         response.getWriter().write(gson.toJson(new ErrorResponse("Invalid request body")));
                         return;
                     }
 
+                    // Validate architecture
+                    Architecture arch;
+                    try {
+                        arch = Architecture.valueOf(debugRequest.architecture);
+                    } catch (IllegalArgumentException e) {
+                        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                        response.getWriter().write(gson.toJson(new ErrorResponse("Invalid architecture")));
+                        return;
+                    }
+
+                    // Deduct architecture cost upfront
+                    if (!user.deductCredits(arch.getCost())) {
+                        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                        response.getWriter().write(gson.toJson(new ErrorResponse(
+                                "Insufficient credits for architecture cost: " + arch.getCost()
+                        )));
+                        return;
+                    }
+
+                    // Start debugging with remaining credits
                     DebugStepDetails stepDetails = engineManager.startDebugging(
                             username,
                             debugRequest.degree,
-                            debugRequest.inputs
+                            debugRequest.inputs,
+                            debugRequest.architecture,
+                            user.getCredits()
                     );
 
                     response.setStatus(HttpServletResponse.SC_OK);
                     response.getWriter().write(gson.toJson(stepDetails));
                 }
                 case "step" -> {
-                    DebugStepDetails stepDetails = engineManager.stepOver(username);
-                    if (stepDetails == null) {
-                        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                        response.getWriter().write(gson.toJson(new ErrorResponse("Not in debug mode")));
-                        return;
+                    DebugStepDetails stepDetails;
+                    try {
+                        stepDetails = engineManager.stepOver(username);
+                    } catch (RuntimeException e) {
+                        if (e.getMessage().contains("Out of credits")) {
+                            response.setStatus(HttpServletResponse.SC_PAYMENT_REQUIRED);
+                            response.getWriter().write(gson.toJson(new ErrorResponse(e.getMessage())));
+                            return;
+                        }
+                        throw e;
                     }
+
+                    // Deduct credits from user
+                    user.deductCredits(stepDetails.cyclesConsumedThisStep());
 
                     response.setStatus(HttpServletResponse.SC_OK);
                     response.getWriter().write(gson.toJson(stepDetails));
                 }
                 case "resume" -> {
-                    ExecutionDetails executionDetails = engineManager.resume(username);
-                    if (executionDetails == null) {
-                        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                        response.getWriter().write(gson.toJson(new ErrorResponse("Not in debug mode")));
-                        return;
+                    ExecutionDetails executionDetails;
+                    try {
+                        executionDetails = engineManager.resume(username);
+                    } catch (RuntimeException e) {
+                        if (e.getMessage().contains("Out of credits")) {
+                            response.setStatus(HttpServletResponse.SC_PAYMENT_REQUIRED);
+                            response.getWriter().write(gson.toJson(new ErrorResponse(e.getMessage())));
+                            return;
+                        }
+                        throw e;
                     }
 
                     response.setStatus(HttpServletResponse.SC_OK);
@@ -105,6 +144,7 @@ public class DebugServlet extends HttpServlet {
     private static class DebugStartRequest {
         int degree;
         Long[] inputs;
+        String architecture;  // ADDED
     }
 
     private static class SuccessResponse {

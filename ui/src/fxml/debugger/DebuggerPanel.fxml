@@ -32,6 +32,12 @@
             <Separator/>
             <Label text="Architecture:"/>
             <ComboBox fx:id="architectureComboBox" maxWidth="Infinity"/>
+
+            <Label fx:id="creditsRemainingLabel" text="Credits Remaining: N/A"
+                   style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+            <Separator/>
+
+
             <Label fx:id="architectureCostLabel" text="Architecture Cost: 0 credits"/>
             <Label fx:id="requiredCreditsLabel" text="Estimated Total: 0 credits"/>
             <Separator/>

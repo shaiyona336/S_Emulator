@@ -127,8 +127,8 @@ public class HttpClientUtil {
 
     // ========== Debug Operations ==========
 
-    public static DebugStepDetails startDebugging(int degree, Long[] inputs) throws IOException {
-        DebugStartRequest debugRequest = new DebugStartRequest(degree, inputs);
+    public static DebugStepDetails startDebugging(int degree, Long[] inputs, String architecture) throws IOException {
+        DebugStartRequest debugRequest = new DebugStartRequest(degree, inputs, architecture);
         String response = sendPostJsonRequest("/debug?action=start", debugRequest);
         return GSON.fromJson(response, DebugStepDetails.class);
     }
@@ -298,10 +298,12 @@ public class HttpClientUtil {
     private static class DebugStartRequest {
         int degree;
         Long[] inputs;
+        String architecture;  // ADDED
 
-        DebugStartRequest(int degree, Long[] inputs) {
+        DebugStartRequest(int degree, Long[] inputs, String architecture) {
             this.degree = degree;
             this.inputs = inputs;
+            this.architecture = architecture;
         }
     }
 
