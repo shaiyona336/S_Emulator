@@ -3,10 +3,7 @@ package servlets;
 import com.google.gson.Gson;
 import components.architecture.Architecture;
 import components.architecture.ArchitectureAnalyzer;
-import dtos.ArchitectureStats;
-import dtos.ExecutionDetails;
-import dtos.ExecutionRequest;
-import dtos.ProgramDetails;
+import dtos.*;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,6 +14,7 @@ import utils.GsonProvider;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.util.List;
 
 @WebServlet(name = "RunProgramServlet", urlPatterns = "/run-program")
 public class RunProgramServlet extends HttpServlet {
@@ -103,6 +101,27 @@ public class RunProgramServlet extends HttpServlet {
                     runRequest.degree(),
                     runRequest.inputs()
             );
+            // Update the last run history entry with architecture info
+            List<RunHistoryDetails> history = engineManager.getStatistics(username);
+            if (history != null && !history.isEmpty()) {
+                RunHistoryDetails lastRun = history.get(history.size() - 1);
+
+                // Create updated entry with architecture
+                RunHistoryDetails updatedRun = new RunHistoryDetails(
+                        lastRun.runNumber(),
+                        lastRun.expansionDegree(),
+                        lastRun.inputs(),
+                        lastRun.yValue(),
+                        lastRun.cyclesNumber(),
+                        lastRun.programName(),
+                        lastRun.programType(),
+                        runRequest.architecture()  // Add architecture
+                );
+
+                // Replace the last entry
+                engineManager.updateLastRunHistory(username, updatedRun);
+            }
+
 
             // Deduct cycle costs
             int cycleCost = executionDetails.cycles();

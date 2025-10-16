@@ -22,8 +22,22 @@ public class EngineManager {
     // Global storage
     private final Map<String, User> users = new ConcurrentHashMap<>();
     private final Map<String, Engine> userEngines = new ConcurrentHashMap<>();
-    private final Map<String, ProgramInfo> globalPrograms = new ConcurrentHashMap<>(); // programName -> ProgramInfo
-    private final Map<String, FunctionInfo> globalFunctions = new ConcurrentHashMap<>(); // functionName -> FunctionInfo
+    private final Map<String, ProgramInfo> globalPrograms = new ConcurrentHashMap<>();
+    private final Map<String, FunctionInfo> globalFunctions = new ConcurrentHashMap<>();
+
+    private final Map<String, List<RunHistoryDetails>> userHistories = new ConcurrentHashMap<>();
+
+    public void updateLastRunHistory(String username, RunHistoryDetails updatedRun) {
+        List<RunHistoryDetails> history = userHistories.get(username);
+        if (history != null && !history.isEmpty()) {
+            history.set(history.size() - 1, updatedRun);
+        }
+    }
+
+
+    public List<RunHistoryDetails> getUserHistory(String username) {
+        return userHistories.getOrDefault(username, new ArrayList<>());
+    }
 
     private EngineManager() {}
 
@@ -201,7 +215,17 @@ public class EngineManager {
     public ExecutionDetails runProgram(String username, int degree, Long[] inputs) {
         Engine engine = getUserEngine(username);
         if (engine != null && engine.isProgramLoaded()) {
-            return engine.runProgram(degree, inputs);
+            ExecutionDetails result = engine.runProgram(degree, inputs);
+
+            // Add to user's global history
+            List<RunHistoryDetails> history = userHistories.computeIfAbsent(username, k -> new ArrayList<>());
+            List<RunHistoryDetails> engineStats = engine.getStatistics();
+            if (engineStats != null && !engineStats.isEmpty()) {
+                RunHistoryDetails lastRun = engineStats.get(engineStats.size() - 1);
+                history.add(lastRun);
+            }
+
+            return result;
         }
         return null;
     }

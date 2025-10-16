@@ -99,6 +99,9 @@ public class DashboardController {
         rerunButton.setDisable(true);
         unselectUserButton.setDisable(true);
 
+        Platform.runLater(() -> loadMyHistory());
+
+
         // Selection listeners - SAVE selections (but only when NOT refreshing)
         programsTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldVal, newVal) -> {
@@ -149,6 +152,8 @@ public class DashboardController {
                 }
         );
     }
+
+
 
     public void setUsername(String username) {
         this.currentUsername = username;
@@ -326,8 +331,14 @@ public class DashboardController {
         loadUsers();
         loadPrograms();
         loadFunctions();
-        loadMyHistory();
         loadMyCredits();
+
+        // Refresh history based on current selection
+        if (selectedUserName != null) {
+            loadUserHistory(selectedUserName);
+        } else {
+            loadMyHistory();
+        }
     }
 
     private void loadUsers() {
@@ -453,12 +464,54 @@ public class DashboardController {
 
     private void loadMyHistory() {
         historyTitleLabel.setText("My History / Statistics");
-        // TODO: Load current user's history
+        new Thread(() -> {
+            try {
+                List<HttpClientUtil.UserHistoryEntry> history = HttpClientUtil.getUserHistory(null);
+                ObservableList<HistoryRow> historyRows = FXCollections.observableArrayList();
+
+                for (HttpClientUtil.UserHistoryEntry entry : history) {
+                    historyRows.add(new HistoryRow(
+                            entry.runNumber,
+                            entry.type,
+                            entry.name,
+                            entry.architecture,
+                            entry.degree,
+                            entry.yValue,
+                            entry.cycles
+                    ));
+                }
+
+                Platform.runLater(() -> historyTableView.setItems(historyRows));
+            } catch (Exception e) {
+                Platform.runLater(() -> showStatus("Failed to load history: " + e.getMessage()));
+            }
+        }).start();
     }
 
     private void loadUserHistory(String username) {
         historyTitleLabel.setText(username + "'s History / Statistics");
-        // TODO: Load selected user's history
+        new Thread(() -> {
+            try {
+                List<HttpClientUtil.UserHistoryEntry> history = HttpClientUtil.getUserHistory(username);
+                ObservableList<HistoryRow> historyRows = FXCollections.observableArrayList();
+
+                for (HttpClientUtil.UserHistoryEntry entry : history) {
+                    historyRows.add(new HistoryRow(
+                            entry.runNumber,
+                            entry.type,
+                            entry.name,
+                            entry.architecture,
+                            entry.degree,
+                            entry.yValue,
+                            entry.cycles
+                    ));
+                }
+
+                Platform.runLater(() -> historyTableView.setItems(historyRows));
+            } catch (Exception e) {
+                Platform.runLater(() -> showStatus("Failed to load history: " + e.getMessage()));
+            }
+        }).start();
     }
 
     private void startAutoRefresh() {

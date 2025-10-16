@@ -43,6 +43,17 @@ public class HttpClientUtil {
         }
     }
 
+    public static List<UserHistoryEntry> getUserHistory(String targetUsername) throws IOException {
+        Map<String, String> params = new HashMap<>();
+        if (targetUsername != null) {
+            params.put("targetUser", targetUsername);
+        }
+
+        String response = sendGetRequestWithParams("/user-history", params);
+        Type listType = new TypeToken<List<UserHistoryEntry>>(){}.getType();
+        return GSON.fromJson(response, listType);
+    }
+
     // ========== File Upload ==========
 
     public static String uploadFile(File file) throws IOException {
@@ -412,5 +423,16 @@ public class HttpClientUtil {
         }
 
         return readResponse(connection);
+    }
+
+
+    public static class UserHistoryEntry {
+        public int runNumber;
+        public String type;
+        public String name;
+        public String architecture;
+        public int degree;
+        public long yValue;
+        public int cycles;
     }
 }

@@ -6,6 +6,7 @@ import components.architecture.Architecture;
 import dtos.DebugStepDetails;
 import dtos.ExecutionDetails;
 import dtos.ProgramDetails;
+import dtos.RunHistoryDetails;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,6 +17,7 @@ import utils.GsonProvider;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -146,7 +148,7 @@ public class DebugServlet extends HttpServlet {
                         if (e.getMessage().contains("Out of credits")) {
                             response.setStatus(HttpServletResponse.SC_PAYMENT_REQUIRED);
                             response.getWriter().write(gson.toJson(new ErrorResponse(e.getMessage())));
-                            debugSessions.remove(username); // Clean up
+                            debugSessions.remove(username);
                             return;
                         }
                         throw e;
@@ -159,7 +161,25 @@ public class DebugServlet extends HttpServlet {
                             int totalCost = session.architectureCost + executionDetails.cycles();
                             programInfo.recordRun(totalCost);
                         }
-                        debugSessions.remove(username); // Clean up
+
+                        // Update history with architecture - NEW
+                        List<RunHistoryDetails> history = engineManager.getStatistics(username);
+                        if (history != null && !history.isEmpty()) {
+                            RunHistoryDetails lastRun = history.get(history.size() - 1);
+                            RunHistoryDetails updatedRun = new RunHistoryDetails(
+                                    lastRun.runNumber(),
+                                    lastRun.expansionDegree(),
+                                    lastRun.inputs(),
+                                    lastRun.yValue(),
+                                    lastRun.cyclesNumber(),
+                                    session.programName,
+                                    lastRun.programType(),
+                                    session.architecture
+                            );
+                            engineManager.updateLastRunHistory(username, updatedRun);
+                        }
+
+                        debugSessions.remove(username);
                     }
 
                     response.setStatus(HttpServletResponse.SC_OK);
@@ -185,7 +205,7 @@ public class DebugServlet extends HttpServlet {
     private static class DebugStartRequest {
         int degree;
         Long[] inputs;
-        String architecture;  // ADDED
+        String architecture;
     }
 
     private static class SuccessResponse {

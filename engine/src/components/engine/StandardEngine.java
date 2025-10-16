@@ -1,3 +1,4 @@
+// engine/src/components/engine/StandardEngine.java
 package components.engine;
 
 import components.executor.ProgramExecutor;
@@ -36,11 +37,8 @@ public class StandardEngine implements Engine {
     private boolean isInDebugMode = false;
     private Program debugProgram = null;
     private int debugExpansionDegree = 0;
-
     private int debugCreditsRemaining = 0;
     private String debugArchitecture = null;
-
-
 
     @Override
     public void loadProgramFromFile(File file) {
@@ -56,13 +54,11 @@ public class StandardEngine implements Engine {
                 for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
                     jumpLabelsAreValid(sFunc.getSInstructions());
                     Program functionAsProgram = JaxbConversion.SFunctionToProgram(sFunc);
-                    // --- MODIFIED: Store the function program AND its user-string ---
                     definedFunctions.put(sFunc.getName(), new FunctionData(functionAsProgram, sFunc.getUserString()));
                 }
             }
             program = JaxbConversion.SProgramToProgram(sProgram);
 
-            // --- NEW: Set the initial context to the main program ---
             this.contextProgram = this.program;
 
             validateFunctionCalls(program, definedFunctions);
@@ -172,10 +168,24 @@ public class StandardEngine implements Engine {
         ProgramExecutor programExecutor = new ProgramExecutor(programToRun, getProgramMap());
         Long y = programExecutor.run(input);
 
-        runHistoryDetails.add(new RunHistoryDetails(++runNumber, expansionDegree, List.of(input), y, programExecutor.getCyclesNumber()));
+        // Determine program type
+        String programType = this.contextProgram == this.program ? "PROGRAM" : "FUNCTION";
+
+        runHistoryDetails.add(new RunHistoryDetails(
+                ++runNumber,
+                expansionDegree,
+                List.of(input),
+                y,
+                programExecutor.getCyclesNumber(),
+                this.contextProgram.getName(),     // programName
+                programType,                        // programType
+                "GENERATION_I"                      // architecture - default, will be updated by servlet
+        ));
 
         return new ExecutionDetails(
-                new ProgramDetails(programToRun.getName(), programToRun.getInputVariables(getProgramMap()), programToRun.getWorkVariables(getProgramMap()), programToRun.getLabels(getProgramMap()), programToRun.getInstructions()),
+                new ProgramDetails(programToRun.getName(), programToRun.getInputVariables(getProgramMap()),
+                        programToRun.getWorkVariables(getProgramMap()), programToRun.getLabels(getProgramMap()),
+                        programToRun.getInstructions()),
                 programExecutor.getVariablesContext(),
                 programExecutor.getCyclesNumber()
         );
@@ -218,14 +228,12 @@ public class StandardEngine implements Engine {
         );
     }
 
-
     @Override
     public DebugStepDetails stepOver() {
         if (!isInDebugMode || this.debugExecutor == null) {
             throw new IllegalStateException("Not in a debug session. Cannot step over.");
         }
 
-        // Get current instruction to calculate cycles
         int cyclesBeforeStep = this.debugExecutor.getCyclesNumber();
 
         this.debugExecutor.stepOver();
@@ -233,10 +241,8 @@ public class StandardEngine implements Engine {
         int cyclesAfterStep = this.debugExecutor.getCyclesNumber();
         int cyclesConsumed = cyclesAfterStep - cyclesBeforeStep;
 
-        // Deduct credits for cycles consumed
         this.debugCreditsRemaining -= cyclesConsumed;
 
-        // Check if out of credits
         if (this.debugCreditsRemaining < 0) {
             this.debugCreditsRemaining = 0;
             stop();
@@ -263,19 +269,24 @@ public class StandardEngine implements Engine {
         int cyclesAfterResume = this.debugExecutor.getCyclesNumber();
         int cyclesConsumed = cyclesAfterResume - cyclesBeforeResume;
 
-        // Deduct remaining cycles
         this.debugCreditsRemaining -= cyclesConsumed;
 
         if (this.debugCreditsRemaining < 0) {
             this.debugCreditsRemaining = 0;
         }
 
+        // Determine program type
+        String programType = this.debugProgram == this.program ? "PROGRAM" : "FUNCTION";
+
         runHistoryDetails.add(new RunHistoryDetails(
                 ++runNumber,
                 this.debugExpansionDegree,
                 List.of(this.debugExecutor.getInitialInputs()),
                 y,
-                this.debugExecutor.getCyclesNumber()
+                this.debugExecutor.getCyclesNumber(),
+                this.debugProgram.getName(),        // programName
+                programType,                         // programType
+                this.debugArchitecture != null ? this.debugArchitecture : "GENERATION_I"  // architecture
         ));
 
         ExecutionDetails finalDetails = new ExecutionDetails(
@@ -309,7 +320,6 @@ public class StandardEngine implements Engine {
         }
     }
 
-    // --- NEW: Gets the list of names for the ComboBox ---
     public List<String> getDisplayableProgramNames() {
         if (!programLoaded) return Collections.emptyList();
         List<String> names = new ArrayList<>();
@@ -337,7 +347,6 @@ public class StandardEngine implements Engine {
         }
     }
 
-    //to convert the new FunctionData map to the old Program map for legacy method calls
     private Map<String, Program> getProgramMap() {
         Map<String, Program> programMap = new HashMap<>();
         for (Map.Entry<String, FunctionData> entry : definedFunctions.entrySet()) {
