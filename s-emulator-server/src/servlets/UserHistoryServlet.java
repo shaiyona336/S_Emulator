@@ -12,6 +12,7 @@ import utils.GsonProvider;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @WebServlet(name = "UserHistoryServlet", urlPatterns = "/user-history")
 public class UserHistoryServlet extends HttpServlet {
@@ -30,13 +31,11 @@ public class UserHistoryServlet extends HttpServlet {
 
         String targetUsername = request.getParameter("targetUser");
         if (targetUsername == null) {
-            targetUsername = username; // Default to current user
+            targetUsername = username;
         }
 
         try {
             EngineManager engineManager = EngineManager.getInstance();
-
-            // Get the history for the target user
             List<RunHistoryDetails> history = engineManager.getUserHistory(targetUsername);
 
             if (history == null) {
@@ -45,24 +44,37 @@ public class UserHistoryServlet extends HttpServlet {
                 return;
             }
 
+            // Convert to DTO
+            List<HistoryEntryDTO> dtoList = history.stream()
+                    .map(h -> new HistoryEntryDTO(
+                            h.runNumber(),
+                            h.programType(),
+                            h.programName(),
+                            h.architecture(),
+                            h.expansionDegree(),
+                            h.yValue(),
+                            h.cyclesNumber()
+                    ))
+                    .collect(Collectors.toList());
+
             response.setStatus(HttpServletResponse.SC_OK);
-            response.getWriter().write(gson.toJson(history));
+            response.getWriter().write(gson.toJson(dtoList));
 
         } catch (Exception e) {
+            e.printStackTrace();
             response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             response.getWriter().write(gson.toJson(new ErrorResponse("Error retrieving history: " + e.getMessage())));
         }
     }
 
-
     private static class HistoryEntryDTO {
-        private final int runNumber;
-        private final String type;        // "PROGRAM" or "FUNCTION"
-        private final String name;
-        private final String architecture;
-        private final int degree;
-        private final long yValue;
-        private final int cycles;
+        public final int runNumber;
+        public final String type;
+        public final String name;
+        public final String architecture;
+        public final int degree;
+        public final long yValue;
+        public final int cycles;
 
         public HistoryEntryDTO(int runNumber, String type, String name,
                                String architecture, int degree, long yValue, int cycles) {

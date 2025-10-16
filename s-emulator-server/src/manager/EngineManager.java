@@ -36,7 +36,17 @@ public class EngineManager {
 
 
     public List<RunHistoryDetails> getUserHistory(String username) {
-        return userHistories.getOrDefault(username, new ArrayList<>());
+        List<RunHistoryDetails> history = userHistories.getOrDefault(username, new ArrayList<>());
+
+        // Debug print
+        System.out.println("Getting history for user: " + username);
+        System.out.println("  Total entries: " + history.size());
+        if (!history.isEmpty()) {
+            RunHistoryDetails first = history.get(0);
+            System.out.println("  First entry - degree: " + first.expansionDegree() + ", cycles: " + first.cyclesNumber());
+        }
+
+        return history;
     }
 
     private EngineManager() {}
@@ -218,10 +228,16 @@ public class EngineManager {
             ExecutionDetails result = engine.runProgram(degree, inputs);
 
             // Add to user's global history
-            List<RunHistoryDetails> history = userHistories.computeIfAbsent(username, k -> new ArrayList<>());
             List<RunHistoryDetails> engineStats = engine.getStatistics();
             if (engineStats != null && !engineStats.isEmpty()) {
                 RunHistoryDetails lastRun = engineStats.get(engineStats.size() - 1);
+
+                // Debug print
+                System.out.println("Adding run to history: " + lastRun);
+                System.out.println("  Degree: " + lastRun.expansionDegree());
+                System.out.println("  Cycles: " + lastRun.cyclesNumber());
+
+                List<RunHistoryDetails> history = userHistories.computeIfAbsent(username, k -> new ArrayList<>());
                 history.add(lastRun);
             }
 

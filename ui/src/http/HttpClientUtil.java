@@ -44,14 +44,49 @@ public class HttpClientUtil {
     }
 
     public static List<UserHistoryEntry> getUserHistory(String targetUsername) throws IOException {
-        Map<String, String> params = new HashMap<>();
+        StringBuilder urlBuilder = new StringBuilder(BASE_URL + "/user-history");
         if (targetUsername != null) {
-            params.put("targetUser", targetUsername);
+            urlBuilder.append("?targetUser=").append(URLEncoder.encode(targetUsername, "UTF-8"));
         }
 
-        String response = sendGetRequestWithParams("/user-history", params);
+        String response = sendGetRequest("/user-history" +
+                (targetUsername != null ? "?targetUser=" + URLEncoder.encode(targetUsername, "UTF-8") : ""));
+
         Type listType = new TypeToken<List<UserHistoryEntry>>(){}.getType();
-        return GSON.fromJson(response, listType);
+        List<UserHistoryEntry> result = GSON.fromJson(response, listType);
+
+        // Debug print
+        System.out.println("Received history entries: " + result.size());
+        if (!result.isEmpty()) {
+            UserHistoryEntry first = result.get(0);
+            System.out.println("First entry - degree: " + first.degree + ", cycles: " + first.cycles);
+        }
+
+        return result;
+    }
+
+    // עדכן את המחלקה הפנימית:
+    public static class UserHistoryEntry {
+        public int runNumber;
+        public String type;
+        public String name;
+        public String architecture;
+        public int degree;
+        public long yValue;
+        public int cycles;
+
+        @Override
+        public String toString() {
+            return "UserHistoryEntry{" +
+                    "runNumber=" + runNumber +
+                    ", type='" + type + '\'' +
+                    ", name='" + name + '\'' +
+                    ", architecture='" + architecture + '\'' +
+                    ", degree=" + degree +
+                    ", yValue=" + yValue +
+                    ", cycles=" + cycles +
+                    '}';
+        }
     }
 
     // ========== File Upload ==========
@@ -426,13 +461,5 @@ public class HttpClientUtil {
     }
 
 
-    public static class UserHistoryEntry {
-        public int runNumber;
-        public String type;
-        public String name;
-        public String architecture;
-        public int degree;
-        public long yValue;
-        public int cycles;
-    }
+
 }

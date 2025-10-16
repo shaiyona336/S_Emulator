@@ -2,6 +2,7 @@ package fxml.dashboard;
 
 import javafx.application.Platform;
 import javafx.beans.property.SimpleIntegerProperty;
+import javafx.beans.property.SimpleLongProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -23,55 +24,95 @@ import java.util.TimerTask;
 
 public class DashboardController {
 
-    @FXML private Label usernameLabel;
-    @FXML private Label creditsLabel;
-    @FXML private Button chargeCreditsButton;
-    @FXML private Button loadFileButton;
+    @FXML
+    private Label usernameLabel;
+    @FXML
+    private Label creditsLabel;
+    @FXML
+    private Button chargeCreditsButton;
+    @FXML
+    private Button loadFileButton;
 
     // Users table
-    @FXML private TableView<UserRow> usersTableView;
-    @FXML private TableColumn<UserRow, String> userNameColumn;
-    @FXML private TableColumn<UserRow, Integer> userProgramsColumn;
-    @FXML private TableColumn<UserRow, Integer> userFunctionsColumn;
-    @FXML private TableColumn<UserRow, Integer> userCreditsColumn;
-    @FXML private TableColumn<UserRow, Integer> userUsedCreditsColumn;
-    @FXML private TableColumn<UserRow, Integer> userRunsColumn;
-    @FXML private Button unselectUserButton;
+    @FXML
+    private TableView<UserRow> usersTableView;
+    @FXML
+    private TableColumn<UserRow, String> userNameColumn;
+    @FXML
+    private TableColumn<UserRow, Integer> userProgramsColumn;
+    @FXML
+    private TableColumn<UserRow, Integer> userFunctionsColumn;
+    @FXML
+    private TableColumn<UserRow, Integer> userCreditsColumn;
+    @FXML
+    private TableColumn<UserRow, Integer> userUsedCreditsColumn;
+    @FXML
+    private TableColumn<UserRow, Integer> userRunsColumn;
+    @FXML
+    private Button unselectUserButton;
 
     // Programs table
-    @FXML private TableView<ProgramRow> programsTableView;
-    @FXML private TableColumn<ProgramRow, String> programNameColumn;
-    @FXML private TableColumn<ProgramRow, String> programOwnerColumn;
-    @FXML private TableColumn<ProgramRow, Integer> programInstructionsColumn;
-    @FXML private TableColumn<ProgramRow, Integer> programMaxDegreeColumn;
-    @FXML private TableColumn<ProgramRow, Integer> programRunsColumn;
-    @FXML private TableColumn<ProgramRow, Integer> programAvgCostColumn;
-    @FXML private Button executeProgramButton;
+    @FXML
+    private TableView<ProgramRow> programsTableView;
+    @FXML
+    private TableColumn<ProgramRow, String> programNameColumn;
+    @FXML
+    private TableColumn<ProgramRow, String> programOwnerColumn;
+    @FXML
+    private TableColumn<ProgramRow, Integer> programInstructionsColumn;
+    @FXML
+    private TableColumn<ProgramRow, Integer> programMaxDegreeColumn;
+    @FXML
+    private TableColumn<ProgramRow, Integer> programRunsColumn;
+    @FXML
+    private TableColumn<ProgramRow, Integer> programAvgCostColumn;
+    @FXML
+    private Button executeProgramButton;
 
     // Functions table
-    @FXML private TableView<FunctionRow> functionsTableView;
-    @FXML private TableColumn<FunctionRow, String> functionNameColumn;
-    @FXML private TableColumn<FunctionRow, String> functionProgramColumn;
-    @FXML private TableColumn<FunctionRow, String> functionOwnerColumn;
-    @FXML private TableColumn<FunctionRow, Integer> functionInstructionsColumn;
-    @FXML private TableColumn<FunctionRow, Integer> functionMaxDegreeColumn;
-    @FXML private Button executeFunctionButton;
+    @FXML
+    private TableView<FunctionRow> functionsTableView;
+    @FXML
+    private TableColumn<FunctionRow, String> functionNameColumn;
+    @FXML
+    private TableColumn<FunctionRow, String> functionProgramColumn;
+    @FXML
+    private TableColumn<FunctionRow, String> functionOwnerColumn;
+    @FXML
+    private TableColumn<FunctionRow, Integer> functionInstructionsColumn;
+    @FXML
+    private TableColumn<FunctionRow, Integer> functionMaxDegreeColumn;
+    @FXML
+    private Button executeFunctionButton;
 
     // History table
-    @FXML private Label historyTitleLabel;
-    @FXML private TableView<HistoryRow> historyTableView;
-    @FXML private TableColumn<HistoryRow, Integer> historyRunNumColumn;
-    @FXML private TableColumn<HistoryRow, String> historyTypeColumn;
-    @FXML private TableColumn<HistoryRow, String> historyNameColumn;
-    @FXML private TableColumn<HistoryRow, String> historyArchColumn;
-    @FXML private TableColumn<HistoryRow, Integer> historyDegreeColumn;
-    @FXML private TableColumn<HistoryRow, Long> historyYValueColumn;
-    @FXML private TableColumn<HistoryRow, Integer> historyCyclesColumn;
-    @FXML private Button showStatusButton;
-    @FXML private Button rerunButton;
+    @FXML
+    private Label historyTitleLabel;
+    @FXML
+    private TableView<HistoryRow> historyTableView;
+    @FXML
+    private TableColumn<HistoryRow, Integer> historyRunNumColumn;
+    @FXML
+    private TableColumn<HistoryRow, String> historyTypeColumn;
+    @FXML
+    private TableColumn<HistoryRow, String> historyNameColumn;
+    @FXML
+    private TableColumn<HistoryRow, String> historyArchColumn;
+    @FXML
+    private TableColumn<HistoryRow, Integer> historyDegreeColumn;
+    @FXML
+    private TableColumn<HistoryRow, Long> historyYValueColumn;
+    @FXML
+    private TableColumn<HistoryRow, Integer> historyCyclesColumn;
+    @FXML
+    private Button showStatusButton;
+    @FXML
+    private Button rerunButton;
 
-    @FXML private Label statusLabel;
-    @FXML private ProgressIndicator loadingIndicator;
+    @FXML
+    private Label statusLabel;
+    @FXML
+    private ProgressIndicator loadingIndicator;
 
     private String currentUsername;
     private Timer refreshTimer;
@@ -152,7 +193,6 @@ public class DashboardController {
                 }
         );
     }
-
 
 
     public void setUsername(String username) {
@@ -467,10 +507,15 @@ public class DashboardController {
         new Thread(() -> {
             try {
                 List<HttpClientUtil.UserHistoryEntry> history = HttpClientUtil.getUserHistory(null);
+
+                System.out.println("Dashboard: Received " + history.size() + " history entries");
+
                 ObservableList<HistoryRow> historyRows = FXCollections.observableArrayList();
 
                 for (HttpClientUtil.UserHistoryEntry entry : history) {
-                    historyRows.add(new HistoryRow(
+                    System.out.println("Processing entry: " + entry);
+
+                    HistoryRow row = new HistoryRow(
                             entry.runNumber,
                             entry.type,
                             entry.name,
@@ -478,11 +523,19 @@ public class DashboardController {
                             entry.degree,
                             entry.yValue,
                             entry.cycles
-                    ));
+                    );
+
+                    System.out.println("Created row - degree: " + row.getDegree() + ", cycles: " + row.getCycles());
+
+                    historyRows.add(row);
                 }
 
-                Platform.runLater(() -> historyTableView.setItems(historyRows));
+                Platform.runLater(() -> {
+                    historyTableView.setItems(historyRows);
+                    System.out.println("Table updated with " + historyRows.size() + " rows");
+                });
             } catch (Exception e) {
+                e.printStackTrace();
                 Platform.runLater(() -> showStatus("Failed to load history: " + e.getMessage()));
             }
         }).start();
@@ -563,12 +616,29 @@ public class DashboardController {
             this.runCount = new SimpleIntegerProperty(runCount);
         }
 
-        public String getUsername() { return username.get(); }
-        public int getProgramCount() { return programCount.get(); }
-        public int getFunctionCount() { return functionCount.get(); }
-        public int getCredits() { return credits.get(); }
-        public int getUsedCredits() { return usedCredits.get(); }
-        public int getRunCount() { return runCount.get(); }
+        public String getUsername() {
+            return username.get();
+        }
+
+        public int getProgramCount() {
+            return programCount.get();
+        }
+
+        public int getFunctionCount() {
+            return functionCount.get();
+        }
+
+        public int getCredits() {
+            return credits.get();
+        }
+
+        public int getUsedCredits() {
+            return usedCredits.get();
+        }
+
+        public int getRunCount() {
+            return runCount.get();
+        }
     }
 
     public static class ProgramRow {
@@ -589,12 +659,29 @@ public class DashboardController {
             this.avgCost = new SimpleIntegerProperty(avgCost);
         }
 
-        public String getName() { return name.get(); }
-        public String getOwner() { return owner.get(); }
-        public int getInstructionCount() { return instructionCount.get(); }
-        public int getMaxDegree() { return maxDegree.get(); }
-        public int getRunCount() { return runCount.get(); }
-        public int getAvgCost() { return avgCost.get(); }
+        public String getName() {
+            return name.get();
+        }
+
+        public String getOwner() {
+            return owner.get();
+        }
+
+        public int getInstructionCount() {
+            return instructionCount.get();
+        }
+
+        public int getMaxDegree() {
+            return maxDegree.get();
+        }
+
+        public int getRunCount() {
+            return runCount.get();
+        }
+
+        public int getAvgCost() {
+            return avgCost.get();
+        }
     }
 
     public static class FunctionRow {
@@ -613,11 +700,25 @@ public class DashboardController {
             this.maxDegree = new SimpleIntegerProperty(maxDegree);
         }
 
-        public String getName() { return name.get(); }
-        public String getProgramName() { return programName.get(); }
-        public String getOwner() { return owner.get(); }
-        public int getInstructionCount() { return instructionCount.get(); }
-        public int getMaxDegree() { return maxDegree.get(); }
+        public String getName() {
+            return name.get();
+        }
+
+        public String getProgramName() {
+            return programName.get();
+        }
+
+        public String getOwner() {
+            return owner.get();
+        }
+
+        public int getInstructionCount() {
+            return instructionCount.get();
+        }
+
+        public int getMaxDegree() {
+            return maxDegree.get();
+        }
     }
 
     public static class HistoryRow {
@@ -626,7 +727,7 @@ public class DashboardController {
         private final SimpleStringProperty name;
         private final SimpleStringProperty architecture;
         private final SimpleIntegerProperty degree;
-        private final SimpleIntegerProperty yValue;
+        private final SimpleLongProperty yValue;
         private final SimpleIntegerProperty cycles;
 
         public HistoryRow(int runNumber, String type, String name, String architecture,
@@ -636,16 +737,39 @@ public class DashboardController {
             this.name = new SimpleStringProperty(name);
             this.architecture = new SimpleStringProperty(architecture);
             this.degree = new SimpleIntegerProperty(degree);
-            this.yValue = new SimpleIntegerProperty((int)yValue);
+            this.yValue = new SimpleLongProperty(yValue);
             this.cycles = new SimpleIntegerProperty(cycles);
+
+            // Debug print
+            System.out.println("HistoryRow constructor - degree: " + degree + ", cycles: " + cycles);
         }
 
-        public int getRunNumber() { return runNumber.get(); }
-        public String getType() { return type.get(); }
-        public String getName() { return name.get(); }
-        public String getArchitecture() { return architecture.get(); }
-        public int getDegree() { return degree.get(); }
-        public long getYValue() { return yValue.get(); }
-        public int getCycles() { return cycles.get(); }
+        public int getRunNumber() {
+            return runNumber.get();
+        }
+
+        public String getType() {
+            return type.get();
+        }
+
+        public String getName() {
+            return name.get();
+        }
+
+        public String getArchitecture() {
+            return architecture.get();
+        }
+
+        public int getDegree() {
+            return degree.get();
+        }
+
+        public long getYValue() {
+            return yValue.get();
+        }
+
+        public int getCycles() {
+            return cycles.get();
+        }
     }
 }
