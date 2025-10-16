@@ -27,6 +27,9 @@ public class EngineManager {
 
     private final Map<String, List<RunHistoryDetails>> userHistories = new ConcurrentHashMap<>();
 
+    private final Map<String, String> programXmlContent = new ConcurrentHashMap<>();
+
+
     public void updateLastRunHistory(String username, RunHistoryDetails updatedRun) {
         List<RunHistoryDetails> history = userHistories.get(username);
         if (history != null && !history.isEmpty()) {
@@ -108,6 +111,9 @@ public class EngineManager {
             ProgramInfo programInfo = new ProgramInfo(programName, username, program,
                     instructionCount, maxDegree);
             globalPrograms.put(programName, programInfo);
+            //store xml content
+            programXmlContent.put(programName, xmlContent);
+
 
             // Store functions (only if they don't already exist)
             if (sProgram.getSFunctions() != null) {
@@ -217,9 +223,30 @@ public class EngineManager {
 
     public void setContextProgram(String username, String programName) {
         Engine engine = getUserEngine(username);
-        if (engine != null) {
-            engine.setContextProgram(programName);
+        if (engine == null) {
+            return;
         }
+
+        String xmlContent = programXmlContent.get(programName);
+        if (xmlContent != null) {
+            // Load the program into this user's engine if not already loaded
+            try {
+                List<String> availablePrograms = engine.getDisplayableProgramNames();
+                if (!availablePrograms.contains(programName)) {
+                    // Load the program from stored XML
+                    java.io.File tempFile = java.io.File.createTempFile("program_", ".xml");
+                    java.io.FileWriter writer = new java.io.FileWriter(tempFile);
+                    writer.write(xmlContent);
+                    writer.close();
+                    engine.loadProgramFromFile(tempFile);
+                    tempFile.delete();
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to load program into user engine: " + e.getMessage());
+            }
+        }
+
+        engine.setContextProgram(programName);
     }
 
     public ExecutionDetails runProgram(String username, int degree, Long[] inputs) {
