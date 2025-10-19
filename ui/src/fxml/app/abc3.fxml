@@ -30,11 +30,11 @@
                 <RowConstraints minHeight="10.0" vgrow="ALWAYS" />
             </rowConstraints>
 
-            <!-- Row 1: Controls (NO LOAD BUTTON) -->
+            <!-- Row 1: Controls -->
             <HBox alignment="CENTER_LEFT" spacing="8.0" GridPane.rowIndex="0">
                 <padding><Insets bottom="5.0" left="10.0" right="10.0" top="5.0" /></padding>
                 <Label text="Program/Function:" />
-                <ComboBox fx:id="programSelectorComboBox" prefWidth="170.0" promptText="Select Context" />
+                <ComboBox fx:id="programSelectorComboBox" prefWidth="200.0" promptText="Select Context" />
                 <Button fx:id="collapseButton" onAction="#handleCollapseClick" text="Collapse" />
                 <Label fx:id="degreeLabel" minHeight="40.0" prefWidth="150.0" text="Current / Maximum degree" wrapText="true" />
                 <Button fx:id="expandButton" onAction="#handleExpandClick" text="Expand" />

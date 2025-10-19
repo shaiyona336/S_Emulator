@@ -24,10 +24,6 @@ import java.util.TimerTask;
 
 public class mainController {
 
-    // Remove loadButton and loadingProgressBar
-    // Remove loadedFileLabel
-
-    // Add new top bar elements
     @FXML private Label usernameLabel;
     @FXML private Label creditsLabel;
 
@@ -92,9 +88,9 @@ public class mainController {
         return currentUsername;
     }
 
-    // Call this method after navigation from dashboard
     public void initializeWithProgram() {
         if (!isProgramLoaded) {
+            loadProgramNames();
             setupExpansionForNewProgram();
             isProgramLoaded = true;
         }
@@ -125,6 +121,35 @@ public class mainController {
             showAlert(Alert.AlertType.ERROR, "Navigation Error",
                     "Failed to return to dashboard", e.getMessage());
         }
+    }
+
+    private void loadProgramNames() {
+        Task<List<String>> loadNamesTask = new Task<>() {
+            @Override
+            protected List<String> call() throws Exception {
+                return HttpClientUtil.getProgramNames();
+            }
+        };
+
+        loadNamesTask.setOnSucceeded(e -> {
+            List<String> programNames = loadNamesTask.getValue();
+            if (programNames != null && !programNames.isEmpty()) {
+                programSelectorComboBox.setItems(FXCollections.observableArrayList(programNames));
+                programSelectorComboBox.setDisable(false);
+
+                // Select the first item by default if nothing is selected
+                if (programSelectorComboBox.getSelectionModel().getSelectedItem() == null) {
+                    programSelectorComboBox.getSelectionModel().selectFirst();
+                }
+            }
+        });
+
+        loadNamesTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Error",
+                    "Failed to load program names", loadNamesTask.getException().getMessage());
+        });
+
+        new Thread(loadNamesTask).start();
     }
 
     private void handleContextChange(String newContext) {
@@ -178,7 +203,6 @@ public class mainController {
             );
         }
     }
-
 
     public void setExpansionControlsDisabled(boolean disabled) {
         expandButton.setDisable(disabled);
