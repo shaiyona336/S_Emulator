@@ -92,10 +92,7 @@
                         <TableColumn fx:id="historyCyclesColumn" text="Cycles" prefWidth="60"/>
                     </columns>
                 </TableView>
-                <HBox spacing="10" alignment="CENTER">
-                    <Button fx:id="showStatusButton" text="Show Status" onAction="#handleShowStatus"/>
-                    <Button fx:id="rerunButton" text="Re-run" onAction="#handleRerun"/>
-                </HBox>
+                <!-- REMOVED: HBox with showStatusButton and rerunButton -->
             </VBox>
         </SplitPane>
     </center>

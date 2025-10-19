@@ -136,8 +136,8 @@ public class DashboardController {
 
         executeProgramButton.setDisable(true);
         executeFunctionButton.setDisable(true);
-        showStatusButton.setDisable(true);
-        rerunButton.setDisable(true);
+//        showStatusButton.setDisable(true);
+//        rerunButton.setDisable(true);
         unselectUserButton.setDisable(true);
 
         Platform.runLater(() -> loadMyHistory());
@@ -170,13 +170,13 @@ public class DashboardController {
                 }
         );
 
-        historyTableView.getSelectionModel().selectedItemProperty().addListener(
-                (obs, oldVal, newVal) -> {
-                    boolean hasSelection = newVal != null;
-                    showStatusButton.setDisable(!hasSelection);
-                    rerunButton.setDisable(!hasSelection);
-                }
-        );
+//        historyTableView.getSelectionModel().selectedItemProperty().addListener(
+//                (obs, oldVal, newVal) -> {
+//                    boolean hasSelection = newVal != null;
+//                    showStatusButton.setDisable(!hasSelection);
+//                    rerunButton.setDisable(!hasSelection);
+//                }
+//        );
 
         usersTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldVal, newVal) -> {
@@ -237,6 +237,7 @@ public class DashboardController {
         historyYValueColumn.setCellValueFactory(new PropertyValueFactory<>("yValue"));
         historyCyclesColumn.setCellValueFactory(new PropertyValueFactory<>("cycles"));
     }
+
 
     @FXML
     private void handleChargeCredits() {
@@ -325,17 +326,17 @@ public class DashboardController {
         loadMyHistory();
     }
 
-    @FXML
-    private void handleShowStatus() {
-        // TODO: Show full variable status for selected run
-        showStatus("Show status not yet implemented");
-    }
-
-    @FXML
-    private void handleRerun() {
-        // TODO: Re-run selected execution
-        showStatus("Re-run not yet implemented");
-    }
+//    @FXML
+//    private void handleShowStatus() {
+//        // TODO: Show full variable status for selected run
+//        showStatus("Show status not yet implemented");
+//    }
+//
+//    @FXML
+//    private void handleRerun() {
+//        // TODO: Re-run selected execution
+//        showStatus("Re-run not yet implemented");
+//    }
 
     private void navigateToExecutionScreen(String programName, String type) {
         try {
