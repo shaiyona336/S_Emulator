@@ -39,11 +39,6 @@ public class DebuggerPanelController {
     @FXML private Label cyclesLabel;
 
     @FXML private ComboBox<String> architectureComboBox;
-    @FXML private Label architectureCostLabel;
-    @FXML private Label requiredCreditsLabel;
-
-    @FXML private Label creditsRemainingLabel;
-
 
     @FXML
     public void initialize() {
@@ -70,10 +65,8 @@ public class DebuggerPanelController {
         ));
         architectureComboBox.setValue("GENERATION_I");
 
-        // Add listener to update cost when architecture changes
         architectureComboBox.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null) {
-                updateArchitectureCost(newVal);
                 updateArchitectureStats(newVal);
             }
         });
@@ -97,8 +90,6 @@ public class DebuggerPanelController {
         new Thread(statsTask).start();
     }
 
-
-
     private void displayArchitectureStats(ArchitectureStats stats) {
         StringBuilder sb = new StringBuilder("Instructions by Architecture:\n");
         stats.instructionCountByArchitecture().forEach((arch, count) -> {
@@ -109,27 +100,7 @@ public class DebuggerPanelController {
         if (!stats.canRunOnArchitecture()) {
             sb.append("\n⚠️ Selected architecture cannot run this program!");
         }
-
-        // Display in a label or text area
-        // architectureStatsLabel.setText(sb.toString());
     }
-
-
-
-
-    private void updateArchitectureCost(String architecture) {
-        int cost = switch (architecture) {
-            case "GENERATION_I" -> 5;
-            case "GENERATION_II" -> 100;
-            case "GENERATION_III" -> 500;
-            case "GENERATION_IV" -> 1000;
-            default -> 0;
-        };
-        architectureCostLabel.setText("Architecture Cost: " + cost + " credits");
-    }
-
-
-
 
     public void setMainController(mainController mainController) {
         this.mainController = mainController;
@@ -150,8 +121,6 @@ public class DebuggerPanelController {
         }
         updateComponentStates();
     }
-
-    // --- UI Event Handlers ---
 
     @FXML
     private void handleStartNormalRun() {
@@ -218,7 +187,6 @@ public class DebuggerPanelController {
             isInDebugMode = true;
             updateComponentStates();
             displayDebugStepResults(initialStep);
-            updateCreditsDisplay(initialStep.creditsRemaining());  // NEW
             if (mainController != null) {
                 mainController.highlightInstruction(1);
             }
@@ -247,7 +215,6 @@ public class DebuggerPanelController {
         stepTask.setOnSucceeded(e -> {
             DebugStepDetails nextStep = stepTask.getValue();
             displayDebugStepResults(nextStep);
-            updateCreditsDisplay(nextStep.creditsRemaining());  // NEW
 
             if (mainController != null) {
                 mainController.highlightInstruction(nextStep.nextInstructionNumber());
@@ -273,22 +240,6 @@ public class DebuggerPanelController {
         });
 
         new Thread(stepTask).start();
-    }
-
-    private void updateCreditsDisplay(int creditsRemaining) {
-        Platform.runLater(() -> {
-            creditsRemainingLabel.setText("Credits Remaining: " + creditsRemaining);
-            if (creditsRemaining < 100) {
-                creditsRemainingLabel.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
-            } else {
-                creditsRemainingLabel.setStyle("-fx-text-fill: black;");
-            }
-
-            // גם עדכן את mainController
-            if (mainController != null) {
-                mainController.onProgramRunFinished();  // This will refresh credits in top bar
-            }
-        });
     }
 
     @FXML
@@ -358,8 +309,6 @@ public class DebuggerPanelController {
             }
         }
     }
-
-    // State and UI management logic
 
     private void updateComponentStates() {
         boolean isProgramLoaded = loadedProgramDetails != null;
