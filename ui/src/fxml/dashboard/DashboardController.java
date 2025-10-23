@@ -343,9 +343,8 @@ public class DashboardController {
             if (controller instanceof fxml.app.mainController) {
                 fxml.app.mainController mainCtrl = (fxml.app.mainController) controller;
                 mainCtrl.setUsername(currentUsername);
-
-                // Pass the selected program name to avoid re-initialization
-                mainCtrl.initializeWithProgram(programName);  // PASS THE PROGRAM NAME
+                
+                mainCtrl.initializeWithProgram(programName);
             }
 
             Stage stage = (Stage) loadFileButton.getScene().getWindow();
