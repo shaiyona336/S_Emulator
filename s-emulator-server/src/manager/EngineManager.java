@@ -222,24 +222,19 @@ public class EngineManager {
             return;
         }
 
-        // Check if program exists globally
         String xmlContent = programXmlContent.get(programName);
 
-        // If not found as main program, check if it's a function
         if (xmlContent == null) {
-            // Search through all programs to find which one contains this function
             for (Map.Entry<String, String> entry : programXmlContent.entrySet()) {
                 String mainProgramName = entry.getKey();
                 xmlContent = entry.getValue();
 
                 try {
-                    // Parse to check if this XML contains the function
                     JAXBContext jaxbContext = JAXBContext.newInstance(SProgram.class);
                     Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
                     StringReader reader = new StringReader(xmlContent);
                     SProgram sProgram = (SProgram) unmarshaller.unmarshal(reader);
 
-                    // Check if this program contains the function we're looking for
                     if (sProgram.getSFunctions() != null) {
                         for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
                             if (sFunc.getUserString().equals(programName) || sFunc.getName().equals(programName)) {
@@ -251,17 +246,14 @@ public class EngineManager {
                         }
                     }
                 } catch (Exception e) {
-                    // Continue searching
                 }
             }
         }
 
         if (xmlContent != null) {
-            // Check if program is already loaded in this user's engine
             try {
                 List<String> availablePrograms = engine.getDisplayableProgramNames();
 
-                // Parse the XML to get the main program name
                 JAXBContext jaxbContext = JAXBContext.newInstance(SProgram.class);
                 Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
                 StringReader reader = new StringReader(xmlContent);
@@ -269,7 +261,6 @@ public class EngineManager {
                 String mainProgramName = sProgram.getName();
 
                 if (!availablePrograms.contains(mainProgramName)) {
-                    // Load the entire program (including all functions) from stored XML
                     System.out.println("Loading program with functions into user engine: " + mainProgramName);
                     java.io.File tempFile = java.io.File.createTempFile("program_", ".xml");
                     java.io.FileWriter writer = new java.io.FileWriter(tempFile);
