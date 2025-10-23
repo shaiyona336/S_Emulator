@@ -65,7 +65,9 @@ public class mainController {
         });
 
         programSelectorComboBox.getSelectionModel().selectedItemProperty().addListener((options, oldValue, newValue) -> {
-            if (newValue != null && !newValue.equals(oldValue)) {
+            // Only handle if it's a real user selection (not programmatic)
+            if (newValue != null && !newValue.equals(oldValue) && oldValue != null) {
+                System.out.println("User selected: " + newValue + " (was: " + oldValue + ")");
                 handleContextChange(newValue);
             }
         });
@@ -88,12 +90,46 @@ public class mainController {
         return currentUsername;
     }
 
-    public void initializeWithProgram() {
+    public void initializeWithProgram(String selectedProgramName) {
         if (!isProgramLoaded) {
-            loadProgramNames();
+            loadProgramNames(selectedProgramName);  // Pass the selected program
             setupExpansionForNewProgram();
             isProgramLoaded = true;
         }
+    }
+
+    private void loadProgramNames(String selectedProgramName) {
+        Task<List<String>> loadNamesTask = new Task<>() {
+            @Override
+            protected List<String> call() throws Exception {
+                return HttpClientUtil.getProgramNames();
+            }
+        };
+
+        loadNamesTask.setOnSucceeded(e -> {
+            List<String> programNames = loadNamesTask.getValue();
+            if (programNames != null && !programNames.isEmpty()) {
+                programSelectorComboBox.setItems(FXCollections.observableArrayList(programNames));
+                programSelectorComboBox.setDisable(false);
+
+                // Select the program that was clicked in dashboard
+                if (selectedProgramName != null) {
+                    programSelectorComboBox.getSelectionModel().select(selectedProgramName);
+                }
+            }
+        });
+
+        loadNamesTask.setOnFailed(e -> {
+            showAlert(Alert.AlertType.ERROR, "Error",
+                    "Failed to load program names", loadNamesTask.getException().getMessage());
+        });
+
+        new Thread(loadNamesTask).start();
+    }
+
+    // Keep backward compatibility
+    public void initializeWithProgram() {
+        initializeWithProgram(null);
     }
 
     @FXML
@@ -131,16 +167,17 @@ public class mainController {
             }
         };
 
+
         loadNamesTask.setOnSucceeded(e -> {
             List<String> programNames = loadNamesTask.getValue();
             if (programNames != null && !programNames.isEmpty()) {
                 programSelectorComboBox.setItems(FXCollections.observableArrayList(programNames));
                 programSelectorComboBox.setDisable(false);
 
-                // Select the first item by default if nothing is selected
-                if (programSelectorComboBox.getSelectionModel().getSelectedItem() == null) {
-                    programSelectorComboBox.getSelectionModel().selectFirst();
-                }
+                // REMOVE OR COMMENT OUT THIS AUTO-SELECT - IT'S CAUSING THE ISSUE!
+                // if (programSelectorComboBox.getSelectionModel().getSelectedItem() == null) {
+                //     programSelectorComboBox.getSelectionModel().selectFirst();
+                // }
             }
         });
 

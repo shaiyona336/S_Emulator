@@ -127,6 +127,10 @@ public class StandardEngine implements Engine {
     @Override
     public ProgramDetails getProgramDetails() {
         if (!programLoaded || contextProgram == null) return null;
+
+        // Debug
+        System.out.println("getProgramDetails called - returning: " + contextProgram.getName());
+
         return new ProgramDetails(
                 contextProgram.getName(),
                 contextProgram.getInputVariables(getProgramMap()),
@@ -159,7 +163,15 @@ public class StandardEngine implements Engine {
 
     @Override
     public ExecutionDetails runProgram(int expansionDegree, Long... input) {
-        Program programToRun = this.contextProgram;
+        // Debug
+        System.out.println("=== RUN PROGRAM CALLED ===");
+        System.out.println("Context program: " + (contextProgram != null ? contextProgram.getName() : "NULL"));
+        System.out.println("Main program: " + (program != null ? program.getName() : "NULL"));
+
+        Program programToRun = this.contextProgram;  // MUST be contextProgram
+
+        System.out.println("Program to run: " + programToRun.getName());
+
         for (int i = 0; i < expansionDegree; i++) {
             programToRun = programToRun.expand(getProgramMap());
         }
@@ -167,7 +179,11 @@ public class StandardEngine implements Engine {
         ProgramExecutor programExecutor = new ProgramExecutor(programToRun, getProgramMap());
         Long y = programExecutor.run(input);
 
+        // Determine program type
         String programType = this.contextProgram == this.program ? "PROGRAM" : "FUNCTION";
+
+        System.out.println("Program type: " + programType);
+        System.out.println("=== RUN COMPLETE ===");
 
         runHistoryDetails.add(new RunHistoryDetails(
                 ++runNumber,
@@ -175,9 +191,9 @@ public class StandardEngine implements Engine {
                 List.of(input),
                 y,
                 programExecutor.getCyclesNumber(),
-                this.contextProgram.getName(),     // programName
-                programType,                        // programType
-                "GENERATION_I"                      // architecture - default, will be updated by servlet
+                this.contextProgram.getName(),
+                programType,
+                "GENERATION_I"
         ));
 
         return new ExecutionDetails(
@@ -205,7 +221,7 @@ public class StandardEngine implements Engine {
             stop();
         }
         this.debugExpansionDegree = degree;
-        this.debugProgram = this.contextProgram;
+        this.debugProgram = this.contextProgram;  // ← Should be contextProgram, not this.program
         this.debugArchitecture = architecture;
         this.debugCreditsRemaining = initialCredits;
 
@@ -225,6 +241,7 @@ public class StandardEngine implements Engine {
                 0
         );
     }
+
 
     @Override
     public DebugStepDetails stepOver() {
@@ -273,7 +290,8 @@ public class StandardEngine implements Engine {
             this.debugCreditsRemaining = 0;
         }
 
-        String programType = this.debugProgram == this.program ? "PROGRAM" : "FUNCTION";
+        // Determine program type - check if debugProgram matches main program
+        String programType = this.debugProgram.getName().equals(this.program.getName()) ? "PROGRAM" : "FUNCTION";
 
         runHistoryDetails.add(new RunHistoryDetails(
                 ++runNumber,
@@ -281,9 +299,9 @@ public class StandardEngine implements Engine {
                 List.of(this.debugExecutor.getInitialInputs()),
                 y,
                 this.debugExecutor.getCyclesNumber(),
-                this.debugProgram.getName(),        // programName
-                programType,                         // programType
-                this.debugArchitecture != null ? this.debugArchitecture : "GENERATION_I"  // architecture
+                this.debugProgram.getName(),        // ← Use debugProgram name (which came from contextProgram)
+                programType,                         // ← Should correctly identify PROGRAM vs FUNCTION
+                this.debugArchitecture != null ? this.debugArchitecture : "GENERATION_I"
         ));
 
         ExecutionDetails finalDetails = new ExecutionDetails(
@@ -331,17 +349,25 @@ public class StandardEngine implements Engine {
     public void setContextProgram(String displayName) {
         if (displayName == null) return;
 
+        // Debug print
+        System.out.println("Setting context to: " + displayName);
+
         if (program != null && program.getName().equals(displayName)) {
             this.contextProgram = this.program;
+            System.out.println("Context set to MAIN PROGRAM: " + program.getName());
             return;
         }
 
         for (FunctionData data : definedFunctions.values()) {
+            System.out.println("Checking function: " + data.userString() + " against: " + displayName);
             if (data.userString().equals(displayName)) {
                 this.contextProgram = data.program();
+                System.out.println("Context set to FUNCTION: " + data.userString());
                 return;
             }
         }
+
+        System.out.println("WARNING: Context not found for: " + displayName);
     }
 
     private Map<String, Program> getProgramMap() {

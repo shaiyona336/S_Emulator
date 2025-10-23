@@ -249,15 +249,12 @@ public class EngineManager {
         if (engine != null && engine.isProgramLoaded()) {
             ExecutionDetails result = engine.runProgram(degree, inputs);
 
-            //add to user global history
+            ProgramDetails currentContext = engine.getProgramDetails();
+            String contextProgramName = currentContext != null ? currentContext.name() : null;
+
             List<RunHistoryDetails> engineStats = engine.getStatistics();
             if (engineStats != null && !engineStats.isEmpty()) {
                 RunHistoryDetails lastRun = engineStats.get(engineStats.size() - 1);
-
-                //debug
-                System.out.println("Adding run to history: " + lastRun);
-                System.out.println("  Degree: " + lastRun.expansionDegree());
-                System.out.println("  Cycles: " + lastRun.cyclesNumber());
 
                 List<RunHistoryDetails> history = userHistories.computeIfAbsent(username, k -> new ArrayList<>());
                 history.add(lastRun);

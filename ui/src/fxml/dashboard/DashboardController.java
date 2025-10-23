@@ -328,11 +328,12 @@ public class DashboardController {
 
     private void navigateToExecutionScreen(String programName, String type) {
         try {
-            //stop auto refresh before navigating
+            // Stop auto-refresh before navigating
             if (refreshTimer != null) {
                 refreshTimer.cancel();
             }
 
+            // Set context BEFORE loading the UI
             HttpClientUtil.setContextProgram(programName);
 
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/app/abc3.fxml"));
@@ -342,7 +343,9 @@ public class DashboardController {
             if (controller instanceof fxml.app.mainController) {
                 fxml.app.mainController mainCtrl = (fxml.app.mainController) controller;
                 mainCtrl.setUsername(currentUsername);
-                mainCtrl.initializeWithProgram();
+
+                // Pass the selected program name to avoid re-initialization
+                mainCtrl.initializeWithProgram(programName);  // PASS THE PROGRAM NAME
             }
 
             Stage stage = (Stage) loadFileButton.getScene().getWindow();
