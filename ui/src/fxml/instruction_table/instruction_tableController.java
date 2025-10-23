@@ -1,4 +1,3 @@
-// ui/src/fxml/instruction_table/instruction_tableController.java
 package fxml.instruction_table;
 
 import components.instruction.Instruction;

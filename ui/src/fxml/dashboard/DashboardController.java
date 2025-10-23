@@ -33,7 +33,7 @@ public class DashboardController {
     @FXML
     private Button loadFileButton;
 
-    // Users table
+    //users table
     @FXML
     private TableView<UserRow> usersTableView;
     @FXML
@@ -51,7 +51,7 @@ public class DashboardController {
     @FXML
     private Button unselectUserButton;
 
-    // Programs table
+    //programs table
     @FXML
     private TableView<ProgramRow> programsTableView;
     @FXML
@@ -69,7 +69,7 @@ public class DashboardController {
     @FXML
     private Button executeProgramButton;
 
-    // Functions table
+    //functions table
     @FXML
     private TableView<FunctionRow> functionsTableView;
     @FXML
@@ -85,7 +85,7 @@ public class DashboardController {
     @FXML
     private Button executeFunctionButton;
 
-    // History table
+    //history table
     @FXML
     private Label historyTitleLabel;
     @FXML
@@ -117,12 +117,12 @@ public class DashboardController {
     private String currentUsername;
     private Timer refreshTimer;
 
-    // Fields to preserve selections during refresh
+    //fields to preserve selections during refresh
     private String selectedProgramName = null;
     private String selectedFunctionName = null;
     private String selectedUserName = null;
 
-    // Flags to prevent listener interference during refresh
+    //flags to prevent listener interference during refresh
     private boolean isRefreshingPrograms = false;
     private boolean isRefreshingFunctions = false;
     private boolean isRefreshingUsers = false;
@@ -143,7 +143,7 @@ public class DashboardController {
         Platform.runLater(() -> loadMyHistory());
 
 
-        // Selection listeners - SAVE selections (but only when NOT refreshing)
+        //selection listeners
         programsTableView.getSelectionModel().selectedItemProperty().addListener(
                 (obs, oldVal, newVal) -> {
                     executeProgramButton.setDisable(newVal == null);
@@ -326,21 +326,9 @@ public class DashboardController {
         loadMyHistory();
     }
 
-//    @FXML
-//    private void handleShowStatus() {
-//        // TODO: Show full variable status for selected run
-//        showStatus("Show status not yet implemented");
-//    }
-//
-//    @FXML
-//    private void handleRerun() {
-//        // TODO: Re-run selected execution
-//        showStatus("Re-run not yet implemented");
-//    }
-
     private void navigateToExecutionScreen(String programName, String type) {
         try {
-            // Stop auto-refresh before navigating
+            //stop auto refresh before navigating
             if (refreshTimer != null) {
                 refreshTimer.cancel();
             }
@@ -374,7 +362,7 @@ public class DashboardController {
         loadFunctions();
         loadMyCredits();
 
-        // Refresh history based on current selection
+        //refresh history based on current selection
         if (selectedUserName != null) {
             loadUserHistory(selectedUserName);
         } else {
@@ -398,9 +386,9 @@ public class DashboardController {
                     ));
                 }
                 Platform.runLater(() -> {
-                    isRefreshingUsers = true;  // Set flag before updating
+                    isRefreshingUsers = true;
                     usersTableView.setItems(userRows);
-                    // Restore selection
+                    //restore selection
                     if (selectedUserName != null) {
                         for (UserRow row : userRows) {
                             if (row.getUsername().equals(selectedUserName)) {
@@ -409,7 +397,7 @@ public class DashboardController {
                             }
                         }
                     }
-                    isRefreshingUsers = false;  // Clear flag after updating
+                    isRefreshingUsers = false;
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> showStatus("Failed to load users: " + e.getMessage()));
@@ -428,8 +416,8 @@ public class DashboardController {
                             prog.owner,
                             prog.instructionCount,
                             prog.maxDegree,
-                            prog.runCount,      // This will now update
-                            prog.avgCost        // This will now update
+                            prog.runCount,
+                            prog.avgCost
                     ));
                 }
                 Platform.runLater(() -> {
@@ -478,7 +466,7 @@ public class DashboardController {
                             }
                         }
                     }
-                    isRefreshingFunctions = false;  // Clear flag after updating
+                    isRefreshingFunctions = false;
                 });
             } catch (Exception e) {
                 Platform.runLater(() -> showStatus("Failed to load functions: " + e.getMessage()));
@@ -498,7 +486,6 @@ public class DashboardController {
                     }
                 }
             } catch (Exception e) {
-                // Ignore
             }
         }).start();
     }
@@ -573,7 +560,7 @@ public class DashboardController {
         refreshTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                refreshData();  // This calls loadPrograms() which updates the table
+                refreshData();
             }
         }, 2000, 2000); // Refresh every 2 seconds
     }
@@ -598,7 +585,7 @@ public class DashboardController {
         });
     }
 
-    // Row classes for tables
+    //row classes for tables
     public static class UserRow {
         private final SimpleStringProperty username;
         private final SimpleIntegerProperty programCount;
@@ -741,7 +728,7 @@ public class DashboardController {
             this.yValue = new SimpleLongProperty(yValue);
             this.cycles = new SimpleIntegerProperty(cycles);
 
-            // Debug print
+            //for debug
             System.out.println("HistoryRow constructor - degree: " + degree + ", cycles: " + cycles);
         }
 

@@ -110,7 +110,7 @@ public class StatisticsController {
             return;
         }
 
-        // Re-run via HTTP to get full results
+        //re-run using HTTP to get full results
         Task<ExecutionDetails> rerunTask = new Task<>() {
             @Override
             protected ExecutionDetails call() throws Exception {

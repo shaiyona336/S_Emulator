@@ -35,7 +35,7 @@ public class LoginController {
 
     @FXML
     private void initialize() {
-        // Allow Enter key to trigger login
+        //allow enter key to trigger login
         usernameTextField.setOnAction(event -> handleLogin());
     }
 
@@ -43,20 +43,20 @@ public class LoginController {
     private void handleLogin() {
         String username = usernameTextField.getText().trim();
 
-        // Validate username
+        //validate username
         if (username.isEmpty()) {
             showError("Please enter a username");
             return;
         }
 
-        // Show loading state
+        //show loading state
         setLoadingState(true);
 
-        // Create login task
+        //create login task
         Task<Void> loginTask = new Task<Void>() {
             @Override
             protected Void call() throws Exception {
-                // Call the login endpoint
+                //call the login endpoint
                 HttpClientUtil.login(username);
                 return null;
             }
@@ -64,7 +64,7 @@ public class LoginController {
 
         loginTask.setOnSucceeded(event -> {
             setLoadingState(false);
-            // Login successful - navigate to main screen
+            //login successful - navigate to main screen
             navigateToMainScreen(username);
         });
 
@@ -73,7 +73,7 @@ public class LoginController {
             Throwable exception = loginTask.getException();
             String errorMessage = exception.getMessage();
 
-            // Check if username already exists
+            //check if username already exists
             if (errorMessage != null && errorMessage.contains("already exists")) {
                 showError("Username already taken. Please choose another.");
             } else {
@@ -81,23 +81,19 @@ public class LoginController {
             }
         });
 
-        // Start the task in background thread
         new Thread(loginTask).start();
     }
 
     private void navigateToMainScreen(String username) {
         try {
-            // Load the dashboard screen instead
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/dashboard/dashboard.fxml"));
             Parent root = loader.load();
 
-            // Get the controller and pass the username
             Object controller = loader.getController();
             if (controller instanceof fxml.dashboard.DashboardController) {
                 ((fxml.dashboard.DashboardController) controller).setUsername(username);
             }
 
-            // Create new scene and show it
             Scene scene = new Scene(root, 1200, 800); // Larger size for dashboard
             primaryStage.setScene(scene);
             primaryStage.setTitle("S-Emulator Dashboard - " + username);

@@ -63,7 +63,7 @@ public class instruction_historyController {
 
         //the most recent instruction should be at the top (index 0)
         //the most ancient should be at the bottom
-        //since we built the list from current to ancient, it's already in the right order
+        //since we built the list from current to ancient, its already in the right order
         int rowNumber = 1;
         for (Instruction inst : instructionChain) {
             String fullDisplayString = inst.getStringInstruction();
@@ -83,7 +83,6 @@ public class instruction_historyController {
         //update the table with the history
         historyTableView.setItems(historyRows);
 
-        //optionally, you can highlight the first row (the current instruction)
         if (!historyRows.isEmpty()) {
             historyTableView.getSelectionModel().select(0);
         }
