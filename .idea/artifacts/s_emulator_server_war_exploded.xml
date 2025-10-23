@@ -16,6 +16,11 @@
           <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/jaxb-impl.jar" />
           <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/jaxb-jxc.jar" />
           <element id="file-copy" path="$PROJECT_DIR$/lib/jaxb-ri-4.0.5/mod/jaxb-xjc.jar" />
+          <element id="module-output" name="dto" />
+          <element id="module-output" name="engine" />
+          <element id="library" level="project" name="lib" />
+          <element id="library" level="project" name="mod" />
+          <element id="file-copy" path="$PROJECT_DIR$/ui/libs/gson-2.11.0.jar" />
         </element>
       </element>
       <element id="javaee-facet-resources" facet="s-emulator-server/web/Web" />
