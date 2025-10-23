@@ -21,7 +21,7 @@ public interface Engine extends Serializable {
     boolean isRunning();
 
     // Updated for debugging with credits
-    DebugStepDetails startDebugging(int degree, Long[] inputs, String architecture, int initialCredits);  // UPDATED
+    DebugStepDetails startDebugging(int degree, Long[] inputs, String architecture, int initialCredits);
     DebugStepDetails stepOver();
     ExecutionDetails resume();
     void stop();

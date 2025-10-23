@@ -9,10 +9,8 @@ public class Main extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        // Load the login screen first
         FXMLLoader loader = new FXMLLoader();
 
-        // Try to load the resource
         java.net.URL fxmlLocation = getClass().getResource("/fxml/Login/login.fxml");
 
         if (fxmlLocation == null) {
@@ -28,11 +26,9 @@ public class Main extends Application {
         loader.setLocation(fxmlLocation);
         Parent root = loader.load();
 
-        // Get the controller and pass the stage
         LoginController controller = loader.getController();
         controller.setPrimaryStage(primaryStage);
 
-        // Set up the scene
         Scene scene = new Scene(root, 400, 350);
         primaryStage.setTitle("S-Emulator - Login");
         primaryStage.setScene(scene);

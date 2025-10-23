@@ -1,4 +1,3 @@
-// s-emulator-server/src/servlets/ArchitectureStatsServlet.java
 package servlets;
 
 import com.google.gson.Gson;

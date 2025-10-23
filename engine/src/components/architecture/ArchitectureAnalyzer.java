@@ -1,4 +1,3 @@
-// engine/src/components/architecture/ArchitectureAnalyzer.java
 package components.architecture;
 
 import components.instruction.Instruction;
@@ -11,12 +10,10 @@ public class ArchitectureAnalyzer {
     public static ArchitectureStats analyzeProgram(List<Instruction> instructions, Architecture targetArchitecture) {
         Map<String, Integer> countByArch = new HashMap<>();
 
-        // Initialize counts
         for (Architecture arch : Architecture.values()) {
             countByArch.put(arch.name(), 0);
         }
 
-        // Count instructions by required architecture
         Architecture minimumRequired = Architecture.GENERATION_I;
         for (Instruction inst : instructions) {
             Architecture required = inst.getRequiredArchitecture();

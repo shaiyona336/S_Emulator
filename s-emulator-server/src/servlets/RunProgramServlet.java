@@ -52,7 +52,7 @@ public class RunProgramServlet extends HttpServlet {
 
             Architecture arch = Architecture.valueOf(runRequest.architecture());
 
-            // Check if user has enough credits
+            //check if user has enough credits
             ProgramDetails details = engineManager.getProgramDetails(username);
             if (details == null) {
                 response.setStatus(HttpServletResponse.SC_NOT_FOUND);
@@ -60,10 +60,10 @@ public class RunProgramServlet extends HttpServlet {
                 return;
             }
 
-            // Expand to target degree
+            //expand to target degree
             ProgramDetails expandedDetails = engineManager.expandProgram(username, runRequest.degree());
 
-            // Analyze if program can run on this architecture
+            //analyze if program can run on this architecture
             ArchitectureStats stats = ArchitectureAnalyzer.analyzeProgram(
                     expandedDetails.instructions(),
                     arch
@@ -78,7 +78,7 @@ public class RunProgramServlet extends HttpServlet {
                 return;
             }
 
-            // Calculate required credits
+            //calculate required credits
             int avgCost = ArchitectureAnalyzer.calculateAverageCost(expandedDetails.instructions(), arch);
 
             if (user.getCredits() < avgCost) {
@@ -89,7 +89,7 @@ public class RunProgramServlet extends HttpServlet {
                 return;
             }
 
-            // Deduct architecture cost upfront
+            //deduct architecture cost
             if (!user.deductCredits(arch.getCost())) {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 response.getWriter().write(gson.toJson(new ErrorResponse("Failed to deduct architecture cost")));
@@ -101,12 +101,12 @@ public class RunProgramServlet extends HttpServlet {
                     runRequest.degree(),
                     runRequest.inputs()
             );
-            // Update the last run history entry with architecture info
+            //update the last run history entry with architecture info
             List<RunHistoryDetails> history = engineManager.getStatistics(username);
             if (history != null && !history.isEmpty()) {
                 RunHistoryDetails lastRun = history.get(history.size() - 1);
 
-                // Create updated entry with architecture
+                //create updated entry with architecture
                 RunHistoryDetails updatedRun = new RunHistoryDetails(
                         lastRun.runNumber(),
                         lastRun.expansionDegree(),
@@ -115,22 +115,19 @@ public class RunProgramServlet extends HttpServlet {
                         lastRun.cyclesNumber(),
                         lastRun.programName(),
                         lastRun.programType(),
-                        runRequest.architecture()  // Add architecture
+                        runRequest.architecture()
                 );
 
-                // Replace the last entry
                 engineManager.updateLastRunHistory(username, updatedRun);
             }
 
 
-            // Deduct cycle costs
             int cycleCost = executionDetails.cycles();
             user.deductCredits(cycleCost);
 
-            // Increment user's run count
             user.incrementRun();
 
-            // Record run in program statistics - NEW
+            //record run in program statistics
             int totalCost = arch.getCost() + cycleCost;
             String programName = details.name();
             EngineManager.ProgramInfo programInfo = engineManager.getProgramInfo(programName);

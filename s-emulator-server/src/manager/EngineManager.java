@@ -19,7 +19,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class EngineManager {
     private static final EngineManager instance = new EngineManager();
 
-    // Global storage
     private final Map<String, User> users = new ConcurrentHashMap<>();
     private final Map<String, Engine> userEngines = new ConcurrentHashMap<>();
     private final Map<String, ProgramInfo> globalPrograms = new ConcurrentHashMap<>();
@@ -41,7 +40,7 @@ public class EngineManager {
     public List<RunHistoryDetails> getUserHistory(String username) {
         List<RunHistoryDetails> history = userHistories.getOrDefault(username, new ArrayList<>());
 
-        // Debug print
+        //debug
         System.out.println("Getting history for user: " + username);
         System.out.println("  Total entries: " + history.size());
         if (!history.isEmpty()) {
@@ -93,18 +92,16 @@ public class EngineManager {
 
             String programName = sProgram.getName();
 
-            // Check if program already exists
+            //check if program already exists
             if (globalPrograms.containsKey(programName)) {
                 throw new Exception("A program with the name '" + programName + "' already exists.");
             }
 
-            // REMOVED: Validation that prevented duplicate functions
-            // Functions can be shared across programs!
 
-            // Convert and store
+            //convert and store
             Program program = JaxbConversion.SProgramToProgram(sProgram);
 
-            // Calculate instruction count at degree 0
+            //calculate instruction count at degree 0
             int instructionCount = program.getInstructions().size();
             int maxDegree = program.calculateMaxDegree(new HashMap<>());
 
@@ -115,19 +112,18 @@ public class EngineManager {
             programXmlContent.put(programName, xmlContent);
 
 
-            // Store functions (only if they don't already exist)
+            //store functions (only if they dont already exist)
             if (sProgram.getSFunctions() != null) {
                 for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
                     String funcName = sFunc.getName();
 
-                    // Check if function already exists
+                    //check if function already exists
                     if (globalFunctions.containsKey(funcName)) {
-                        // Function already exists - skip it (functions are shared)
+                        //function already exists - skip it (functions are shared)
                         System.out.println("Function '" + funcName + "' already exists. Skipping (shared function).");
                         continue;
                     }
 
-                    // Add new function
                     Program funcProgram = JaxbConversion.SFunctionToProgram(sFunc);
                     int funcInstructionCount = funcProgram.getInstructions().size();
                     int funcMaxDegree = funcProgram.calculateMaxDegree(new HashMap<>());
@@ -145,11 +141,11 @@ public class EngineManager {
                 }
             }
 
-            // Update user stats
+            //update user stats
             User user = users.get(username);
             if (user != null) {
                 user.incrementProgramsUploaded();
-                // Only count NEW functions added
+                //only count NEW functions added
                 int newFunctionsCount = 0;
                 if (sProgram.getSFunctions() != null) {
                     for (SFunction sFunc : sProgram.getSFunctions().getSFunction()) {
@@ -161,7 +157,7 @@ public class EngineManager {
                 user.incrementFunctionsUploaded(newFunctionsCount);
             }
 
-            // Load into user's engine
+            //load into user engine
             java.io.File tempFile = java.io.File.createTempFile("program_", ".xml");
             java.io.FileWriter writer = new java.io.FileWriter(tempFile);
             writer.write(xmlContent);
@@ -188,7 +184,6 @@ public class EngineManager {
         return globalPrograms.get(programName);
     }
 
-    // Existing methods...
     public ProgramDetails getProgramDetails(String username) {
         Engine engine = getUserEngine(username);
         if (engine != null && engine.isProgramLoaded()) {
@@ -229,7 +224,7 @@ public class EngineManager {
 
         String xmlContent = programXmlContent.get(programName);
         if (xmlContent != null) {
-            // Load the program into this user's engine if not already loaded
+            //load the program into this user's engine if not already loaded
             try {
                 List<String> availablePrograms = engine.getDisplayableProgramNames();
                 if (!availablePrograms.contains(programName)) {
@@ -254,12 +249,12 @@ public class EngineManager {
         if (engine != null && engine.isProgramLoaded()) {
             ExecutionDetails result = engine.runProgram(degree, inputs);
 
-            // Add to user's global history
+            //add to user global history
             List<RunHistoryDetails> engineStats = engine.getStatistics();
             if (engineStats != null && !engineStats.isEmpty()) {
                 RunHistoryDetails lastRun = engineStats.get(engineStats.size() - 1);
 
-                // Debug print
+                //debug
                 System.out.println("Adding run to history: " + lastRun);
                 System.out.println("  Degree: " + lastRun.expansionDegree());
                 System.out.println("  Cycles: " + lastRun.cyclesNumber());
@@ -339,7 +334,6 @@ public class EngineManager {
             return runCount > 0 ? totalCost / runCount : 0;
         }
 
-        // Getters
         public String getName() { return name; }
         public String getOwner() { return owner; }
         public Program getProgram() { return program; }
@@ -369,7 +363,6 @@ public class EngineManager {
             this.maxDegree = maxDegree;
         }
 
-        // Getters
         public String getName() { return name; }
         public String getUserString() { return userString; }
         public String getProgramName() { return programName; }

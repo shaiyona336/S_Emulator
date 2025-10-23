@@ -10,14 +10,14 @@ import components.instruction.implementations.basic.JumpNotZeroInstruction;
 import components.label.FixedLabel;
 import components.label.FreeLabelGenerator;
 import components.label.Label;
-import components.program.Program; // Add import
+import components.program.Program;
 import components.variable.FreeWorkVariableGenerator;
 import components.variable.StandardVariable;
 import components.variable.Variable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map; // Add import
+import java.util.Map;
 
 public class GotoLabelInstruction extends AbstractInstruction {
     private final Label gotoLabel;
@@ -66,7 +66,7 @@ public class GotoLabelInstruction extends AbstractInstruction {
 
     @Override
     public Instruction rename(Map<Variable, Variable> varMap, Map<Label, Label> labelMap) {
-        // This instruction doesn't use a variable, so we only rename labels
+        //this instruction doesn't use a variable, so we only rename labels
         Label newLabel = labelMap.getOrDefault(getLabel(), getLabel());
         Label newGotoLabel = labelMap.getOrDefault(this.gotoLabel, this.gotoLabel);
         return new GotoLabelInstruction(newGotoLabel, newLabel);

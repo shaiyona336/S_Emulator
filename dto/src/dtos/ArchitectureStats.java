@@ -1,4 +1,3 @@
-// dto/src/dtos/ArchitectureStats.java
 package dtos;
 
 import java.util.Map;

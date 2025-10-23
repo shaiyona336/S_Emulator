@@ -8,12 +8,12 @@ import components.instruction.InstructionSemantic;
 import components.label.FixedLabel;
 import components.label.FreeLabelGenerator;
 import components.label.Label;
-import components.program.Program; // Add import
+import components.program.Program;
 import components.variable.FreeWorkVariableGenerator;
 import components.variable.Variable;
 
 import java.util.List;
-import java.util.Map; // Add import
+import java.util.Map;
 
 public class JumpNotZeroInstruction extends AbstractInstruction {
     private final Label JNZLabel;

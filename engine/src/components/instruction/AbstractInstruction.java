@@ -1,6 +1,6 @@
 package components.instruction;
 
-import components.architecture.Architecture;  // ADD THIS IMPORT
+import components.architecture.Architecture;
 import components.label.FixedLabel;
 import components.label.Label;
 import components.variable.Variable;

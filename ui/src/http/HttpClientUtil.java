@@ -19,8 +19,7 @@ public class HttpClientUtil {
     private final static Gson GSON = GsonProvider.getGson();
     private static Map<String, String> cookies = new HashMap<>();
 
-    // ========== Authentication ==========
-
+    //authentication
     public static void login(String username) throws IOException {
         URL url = new URL(BASE_URL + "/login");
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -55,7 +54,7 @@ public class HttpClientUtil {
         Type listType = new TypeToken<List<UserHistoryEntry>>(){}.getType();
         List<UserHistoryEntry> result = GSON.fromJson(response, listType);
 
-        // Debug print
+        //for debug
         System.out.println("Received history entries: " + result.size());
         if (!result.isEmpty()) {
             UserHistoryEntry first = result.get(0);
@@ -65,7 +64,6 @@ public class HttpClientUtil {
         return result;
     }
 
-    // עדכן את המחלקה הפנימית:
     public static class UserHistoryEntry {
         public int runNumber;
         public String type;
@@ -89,8 +87,7 @@ public class HttpClientUtil {
         }
     }
 
-    // ========== File Upload ==========
-
+    //file upload
     public static String uploadFile(File file) throws IOException {
         String boundary = "----WebKitFormBoundary" + System.currentTimeMillis();
         String LINE_FEED = "\r\n";
@@ -105,7 +102,7 @@ public class HttpClientUtil {
         try (OutputStream outputStream = connection.getOutputStream();
              PrintWriter writer = new PrintWriter(new OutputStreamWriter(outputStream, "UTF-8"), true)) {
 
-            // Add file part
+            //add file part
             writer.append("--").append(boundary).append(LINE_FEED);
             writer.append("Content-Disposition: form-data; name=\"programFile\"; filename=\"")
                     .append(file.getName()).append("\"").append(LINE_FEED);
@@ -113,7 +110,7 @@ public class HttpClientUtil {
             writer.append(LINE_FEED);
             writer.flush();
 
-            // Write file content
+            //write file content
             Files.copy(file.toPath(), outputStream);
             outputStream.flush();
 
@@ -130,7 +127,6 @@ public class HttpClientUtil {
         return readResponse(connection);
     }
 
-    // ========== Program Operations ==========
 
     public static ProgramDetails getProgramDetails() throws IOException {
         String response = sendGetRequest("/program-details");
@@ -163,7 +159,6 @@ public class HttpClientUtil {
         sendPostFormRequest("/set-context", params);
     }
 
-    // ========== Execution Operations ==========
 
     public static ExecutionDetails runProgram(int degree, Long[] inputs) throws IOException {
         RunRequest runRequest = new RunRequest(degree, inputs);
@@ -171,7 +166,6 @@ public class HttpClientUtil {
         return GSON.fromJson(response, ExecutionDetails.class);
     }
 
-    // ========== Debug Operations ==========
 
     public static DebugStepDetails startDebugging(int degree, Long[] inputs, String architecture) throws IOException {
         DebugStartRequest debugRequest = new DebugStartRequest(degree, inputs, architecture);
@@ -193,7 +187,6 @@ public class HttpClientUtil {
         sendPostJsonRequest("/debug?action=stop", "");
     }
 
-    // ========== Statistics ==========
 
     public static List<RunHistoryDetails> getStatistics() throws IOException {
         String response = sendGetRequest("/statistics");
@@ -201,7 +194,6 @@ public class HttpClientUtil {
         return GSON.fromJson(response, listType);
     }
 
-    // ========== Helper Methods ==========
 
     private static String sendGetRequest(String endpoint) throws IOException {
         URL url = new URL(BASE_URL + endpoint);
@@ -226,7 +218,7 @@ public class HttpClientUtil {
         connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
         addCookiesToConnection(connection);
 
-        // Build form parameters
+
         StringBuilder postData = new StringBuilder();
         for (Map.Entry<String, String> param : params.entrySet()) {
             if (postData.length() != 0) {
@@ -329,7 +321,6 @@ public class HttpClientUtil {
         }
     }
 
-    // ========== Helper Classes ==========
 
     private static class RunRequest {
         int degree;
@@ -378,7 +369,6 @@ public class HttpClientUtil {
     public static void addCredits(int amount) throws IOException {
         AddCreditsRequest request = new AddCreditsRequest(amount);
         String response = sendPostJsonRequest("/add-credits", request);
-        // Response is just a success message
     }
 
     private static class AddCreditsRequest {

@@ -1,4 +1,3 @@
-// engine/src/components/engine/StandardEngine.java
 package components.engine;
 
 import components.executor.ProgramExecutor;
@@ -168,7 +167,6 @@ public class StandardEngine implements Engine {
         ProgramExecutor programExecutor = new ProgramExecutor(programToRun, getProgramMap());
         Long y = programExecutor.run(input);
 
-        // Determine program type
         String programType = this.contextProgram == this.program ? "PROGRAM" : "FUNCTION";
 
         runHistoryDetails.add(new RunHistoryDetails(
@@ -275,7 +273,6 @@ public class StandardEngine implements Engine {
             this.debugCreditsRemaining = 0;
         }
 
-        // Determine program type
         String programType = this.debugProgram == this.program ? "PROGRAM" : "FUNCTION";
 
         runHistoryDetails.add(new RunHistoryDetails(

@@ -12,14 +12,14 @@ import components.instruction.implementations.basic.NeutralInstruction;
 import components.label.FixedLabel;
 import components.label.FreeLabelGenerator;
 import components.label.Label;
-import components.program.Program; // Add import
+import components.program.Program;
 import components.variable.FreeWorkVariableGenerator;
 import components.variable.StandardVariable;
 import components.variable.Variable;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map; // Add import
+import java.util.Map;
 
 public class AssignmentInstruction extends AbstractInstruction {
     private final Variable assignedVariable;

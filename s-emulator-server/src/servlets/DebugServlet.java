@@ -1,4 +1,3 @@
-// s-emulator-server/src/servlets/DebugServlet.java
 package servlets;
 
 import com.google.gson.Gson;
@@ -80,7 +79,7 @@ public class DebugServlet extends HttpServlet {
                         return;
                     }
 
-                    // Validate architecture
+                    //validate architecture
                     Architecture arch;
                     try {
                         arch = Architecture.valueOf(debugRequest.architecture);
@@ -90,7 +89,7 @@ public class DebugServlet extends HttpServlet {
                         return;
                     }
 
-                    // Deduct architecture cost upfront
+                    //deduct architecture cost
                     if (!user.deductCredits(arch.getCost())) {
                         response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                         response.getWriter().write(gson.toJson(new ErrorResponse(
@@ -99,7 +98,7 @@ public class DebugServlet extends HttpServlet {
                         return;
                     }
 
-                    // Start debugging with remaining credits
+                    //start debugging with remaining credits
                     DebugStepDetails stepDetails = engineManager.startDebugging(
                             username,
                             debugRequest.degree,
@@ -132,7 +131,7 @@ public class DebugServlet extends HttpServlet {
                         throw e;
                     }
 
-                    // Deduct credits from user
+                    //deduct credits from user
                     user.deductCredits(stepDetails.cyclesConsumedThisStep());
 
                     response.setStatus(HttpServletResponse.SC_OK);
@@ -154,7 +153,7 @@ public class DebugServlet extends HttpServlet {
                         throw e;
                     }
 
-                    // Record the run
+                    //record the run
                     if (session != null) {
                         EngineManager.ProgramInfo programInfo = engineManager.getProgramInfo(session.programName);
                         if (programInfo != null) {
@@ -162,7 +161,7 @@ public class DebugServlet extends HttpServlet {
                             programInfo.recordRun(totalCost);
                         }
 
-                        // Update history with architecture - NEW
+                        //update history with architecture
                         List<RunHistoryDetails> history = engineManager.getStatistics(username);
                         if (history != null && !history.isEmpty()) {
                             RunHistoryDetails lastRun = history.get(history.size() - 1);
